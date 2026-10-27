@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chef's Passport</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#d9534f; --green:#2fbf71; --ink:#2b2420; --cream:#fff8ec; --gold:#ffc94a;
+  --panel:rgba(20,26,48,.82); --panel-line:rgba(255,255,255,.14);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#070b1d;color:#fff;
+  font-family:'Fredoka',system-ui,-apple-system,'Segoe UI',sans-serif;user-select:none;-webkit-user-select:none}
+button{font-family:inherit;cursor:pointer}
+.hidden{display:none!important}
+.screen{position:fixed;inset:0;display:none}
+.screen.active{display:block}
+
+/* ---------- GLOBE SCREEN ---------- */
+#globeScreen{background:radial-gradient(ellipse at 50% 40%,#16204a 0%,#070b1d 70%)}
+#globe{position:absolute;inset:0;touch-action:none;cursor:grab}
+#globe:active{cursor:grabbing}
+.game-title{position:absolute;top:18px;left:50%;transform:translateX(-50%);font-size:30px;font-weight:700;
+  letter-spacing:.5px;text-shadow:0 3px 0 #000a;pointer-events:none;white-space:nowrap}
+.game-title span{color:var(--gold)}
+#hud{position:absolute;top:14px;left:14px;width:250px}
+.profile-card{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border-radius:16px;
+  border:1px solid var(--panel-line);color:#fff;text-align:left;position:relative;overflow:hidden;
+  background:var(--panel);backdrop-filter:blur(6px)}
+.profile-card .bgflag{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.35}
+.profile-card > *:not(.bgflag){position:relative}
+.profile-card:hover{border-color:#fff6}
+.hud-switch{margin-top:6px;font-size:13px;padding:5px 12px;border-radius:20px;border:1px solid var(--panel-line);background:var(--panel);color:#fff}
+.hud-switch:hover{border-color:#fff6}
+.plist{display:flex;flex-direction:column;gap:8px;margin:10px 0 14px;max-height:300px;overflow:auto}
+.prow{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid #0001;border-radius:14px;padding:8px 10px}
+.prow.cur{border-color:#ffb320;background:#fff3d6}
+.prow .avatar{width:40px;height:40px;border-width:2px;font-size:22px}
+.prow .pinfo{flex:1;display:flex;flex-direction:column;min-width:0}
+.prow .btn{padding:6px 14px}
+.dish-photo{width:100%;height:220px;border-radius:16px;overflow:hidden;background:#f1e6d2;display:grid;place-items:center;margin:4px 0 10px;
+  box-shadow:inset 0 0 0 1px #0001}
+.dish-photo img{width:100%;height:100%;object-fit:cover;animation:pop .4s}
+.dish-photo .ph{font-size:64px;opacity:.6;animation:bob 1s infinite}
+.credit{font-size:11px;opacity:.55;text-align:center;margin-top:-6px}
+.credit a{color:inherit}
+#infoCard .dish-photo{height:120px;margin:4px 0 4px}
+.kind{font-size:12px;opacity:.7;margin-top:-2px}
+.plate .food img{position:absolute;left:50%;bottom:4px;width:120px;height:120px;transform:translateX(-50%);border-radius:50%;object-fit:cover;
+  border:6px solid #fff;box-shadow:0 4px 10px #0005;animation:pop .5s}
+.avatar{width:48px;height:48px;border-radius:50%;flex:none;border:3px solid #fff;background:#ffe9c4 center/cover;
+  display:grid;place-items:center;font-size:26px;box-shadow:0 2px 6px #0007;overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover}
+#hudName{font-weight:600;font-size:18px;line-height:1.1}
+.small{font-size:13px;opacity:.85}
+.progress{height:8px;border-radius:8px;background:#ffffff22;margin-top:8px;overflow:hidden}
+.progress > div{height:100%;width:0;background:linear-gradient(90deg,#2fbf71,#9be15d);transition:width .6s}
+#legend{position:absolute;left:14px;bottom:16px;font-size:13px;background:var(--panel);padding:8px 12px;border-radius:12px;
+  border:1px solid var(--panel-line);display:flex;gap:12px;align-items:center}
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+.hint{position:absolute;top:58px;left:50%;transform:translateX(-50%);font-size:13px;opacity:.6;pointer-events:none;white-space:nowrap}
+#randomBtn{position:absolute;bottom:26px;left:50%;transform:translateX(-50%)}
+.big-btn{font-size:22px;font-weight:600;padding:14px 30px;border-radius:40px;border:none;color:#3a2600;
+  background:linear-gradient(#ffd96a,#ffb320);box-shadow:0 6px 0 #b86f00,0 10px 24px #0008;transition:transform .1s}
+.big-btn:hover{filter:brightness(1.06)}
+.big-btn:active{box-shadow:0 2px 0 #b86f00;transform:translateX(-50%) translateY(4px)}
+.big-btn:disabled{filter:grayscale(.7);opacity:.6;cursor:default}
+#zoomBtns{position:absolute;right:16px;bottom:24px;display:flex;flex-direction:column;gap:8px}
+.round{width:42px;height:42px;border-radius:50%;border:1px solid var(--panel-line);background:var(--panel);color:#fff;font-size:22px}
+#infoCard{position:absolute;right:16px;top:16px;width:290px;background:var(--panel);border:1px solid var(--panel-line);
+  border-radius:18px;padding:16px;backdrop-filter:blur(8px);box-shadow:0 10px 30px #0008;animation:pop .25s}
+#infoCard .flag{width:100%;height:150px;border-radius:10px;overflow:hidden;background:#0003;display:grid;place-items:center;margin-bottom:10px}
+#infoCard .flag img{width:100%;height:100%;object-fit:cover}
+#infoCard h2{margin:0 0 2px;font-size:24px}
+#infoCard .row{display:flex;gap:8px;margin:6px 0;font-size:15px}
+#infoCard .row b{font-weight:500;opacity:.7;min-width:62px}
+.status{display:inline-block;padding:3px 10px;border-radius:20px;font-size:13px;font-weight:600;margin:4px 0 10px}
+.status.locked{background:#d9534f33;color:#ff9c99}
+.status.done{background:#2fbf7133;color:#7ef0b0}
+.fly-btn{width:100%;font-size:18px;font-weight:600;padding:12px;border-radius:14px;border:none;color:#fff;
+  background:linear-gradient(#3fa2ff,#1a6fe0);box-shadow:0 4px 0 #0d4a9e}
+.fly-btn:active{transform:translateY(3px);box-shadow:0 1px 0 #0d4a9e}
+.x-btn{position:absolute;top:8px;right:10px;background:none;border:none;color:#fff;font-size:22px;opacity:.7}
+#flightBanner{position:absolute;top:80px;left:50%;transform:translateX(-50%);background:var(--panel);
+  border:1px solid var(--panel-line);padding:12px 26px;border-radius:30px;font-size:20px;white-space:nowrap}
+@keyframes pop{from{transform:scale(.9);opacity:0}}
+
+/* ---------- FADE ---------- */
+#fade{position:fixed;inset:0;background:#fff8ec;color:var(--ink);display:grid;place-items:center;opacity:0;pointer-events:none;
+  transition:opacity .5s;z-index:50;text-align:center}
+#fade.on{opacity:1;pointer-events:auto}
+#fade .big{font-size:58px}
+#fade .t{font-size:24px;font-weight:600;margin-top:8px}
+#fade .s{font-size:16px;opacity:.7}
+
+/* ---------- KITCHEN ---------- */
+#kitchen{background:#3b2a20}
+#stage{position:absolute;left:50%;top:50%;width:1200px;height:720px;transform-origin:center center;overflow:hidden;
+  border-radius:8px;box-shadow:0 0 60px #000a;cursor:none}
+#kitchen.touch #stage{cursor:auto}
+.wall{position:absolute;inset:0;background:
+  linear-gradient(#0000 330px,#0000 330px),
+  #f4e6cc}
+.backsplash{position:absolute;left:200px;right:0;top:330px;height:140px;
+  background-color:#e9f2f4;
+  background-image:linear-gradient(#cfdfe3 2px,transparent 2px),linear-gradient(90deg,#cfdfe3 2px,transparent 2px);
+  background-size:46px 30px}
+.floor{position:absolute;left:0;right:0;top:690px;bottom:0;
+  background:repeating-conic-gradient(#d7c3a3 0 25%,#b89f7b 0 50%) 0 0/30px 30px}
+.k-title{position:absolute;left:220px;top:8px;width:680px;text-align:center;color:#5a3a22;font-size:20px;font-weight:600}
+.k-title small{display:block;font-size:13px;font-weight:400;opacity:.75}
+.station{position:absolute}
+.station[data-act]:hover{filter:brightness(1.08) drop-shadow(0 0 8px #ffd96a)}
+.label{position:absolute;left:50%;transform:translateX(-50%);bottom:-24px;background:#2b2420dd;color:#fff;font-size:12px;
+  padding:2px 9px;border-radius:10px;white-space:nowrap;pointer-events:none;opacity:.8;z-index:5}
+.station:hover > .label{opacity:1;background:#000}
+
+/* picture frames */
+.frame{background:#fff;border:10px solid #8a5a32;border-radius:4px;box-shadow:inset 0 0 0 3px #c99a62,0 6px 12px #0005;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ink);text-align:center;overflow:hidden}
+.frame .pic{font-size:54px;line-height:1}
+.frame .cap{font-size:12px;font-weight:600;margin-top:6px;padding:0 4px;line-height:1.15}
+.frame.flagf{padding:0;background:#ddd}
+.frame.flagf img{width:100%;height:100%;object-fit:cover;display:block}
+.frame.globef{background:radial-gradient(circle at 35% 35%,#7fd0ff,#1a5fb4);color:#fff;border-color:#2d4d7a;box-shadow:inset 0 0 0 3px #6a8fc0,0 6px 12px #0005}
+.frame.globef .cap{color:#fff;text-shadow:0 1px 2px #0008}
+.frame.flora{background:#eef8e6}
+.frame.fauna{background:#fdf1e0}
+.wallclock{position:absolute;left:62px;top:30px;width:76px;height:76px;border-radius:50%;background:#fff;border:6px solid #5a3a22;box-shadow:0 4px 8px #0004}
+.wallclock::before,.wallclock::after{content:"";position:absolute;left:50%;top:50%;background:#333;transform-origin:bottom center;border-radius:2px}
+.wallclock::before{width:3px;height:24px;margin:-24px 0 0 -1.5px;transform:rotate(40deg)}
+.wallclock::after{width:3px;height:18px;margin:-18px 0 0 -1.5px;transform:rotate(-70deg)}
+
+/* recipe board */
+.recipe{left:915px;top:22px;width:268px;height:300px;background:#c99a5e;border:8px solid #7a4e2a;border-radius:6px;
+  box-shadow:0 6px 12px #0005;padding:10px}
+.recipe .paper{background:#fffdf5;height:100%;padding:10px 12px;color:var(--ink);box-shadow:0 2px 4px #0003;transform:rotate(-1deg);overflow:hidden}
+.recipe h3{margin:0;font-size:18px;line-height:1.1}
+.recipe .sub{font-size:12px;opacity:.65;margin-bottom:6px}
+.recipe ul{list-style:none;margin:0;padding:0}
+.recipe li{display:flex;align-items:center;gap:6px;font-size:13.5px;padding:3px 0;border-bottom:1px dashed #0002}
+.recipe li .e{font-size:18px;width:22px;text-align:center}
+.recipe li .n{flex:1}
+.recipe li .how{font-size:11.5px;opacity:.8;white-space:nowrap}
+.recipe li.prepped .how{color:#1c8d4f;opacity:1}
+.recipe li.plated{opacity:.45}
+.recipe li.plated .n{text-decoration:line-through}
+.recipe li .ck{width:16px;text-align:center;color:#1c8d4f;font-weight:700}
+.pin{position:absolute;width:14px;height:14px;border-radius:50%;background:#e44;box-shadow:0 2px 2px #0006;top:2px}
+
+/* fridge */
+.fridge{left:22px;top:130px;width:170px;height:560px;border-radius:14px 14px 4px 4px;
+  background:linear-gradient(90deg,#dfe6ea,#ffffff 30%,#dfe6ea);box-shadow:inset 0 0 0 2px #b9c4ca,0 8px 16px #0005}
+.fridge .door{position:absolute;left:6px;right:6px;border-radius:8px;box-shadow:inset 0 0 0 2px #c5d0d6}
+.fridge .d1{top:6px;height:160px}
+.fridge .d2{top:172px;bottom:8px}
+.fridge .handle{position:absolute;right:16px;width:8px;border-radius:4px;background:linear-gradient(90deg,#9aa5ab,#e8eef0)}
+.fridge .d1 .handle{bottom:14px;height:70px}
+.fridge .d2 .handle{top:16px;height:110px}
+.magnet{position:absolute;font-size:24px}
+
+/* cupboards */
+.cup-upper{left:230px;top:226px;width:500px;height:104px;display:flex;gap:4px;padding:4px;background:#8a5a32;border-radius:4px;box-shadow:0 6px 10px #0004}
+.cupdoor{flex:1;background:linear-gradient(#c9935a,#b07b45);border-radius:3px;box-shadow:inset 0 0 0 6px #a06c3a,inset 0 0 0 8px #d8a56c;position:relative}
+.cupdoor::after{content:"";position:absolute;bottom:10px;left:50%;width:22px;height:6px;margin-left:-11px;border-radius:3px;background:#5a3a22}
+.cup-lower{left:200px;top:492px;width:540px;height:198px;display:flex;gap:4px;padding:6px;background:#8a5a32}
+.cup-lower .cupdoor::after{top:14px;bottom:auto}
+.cup-lower2{left:960px;top:492px;width:240px;height:198px;display:flex;gap:4px;padding:6px;background:#8a5a32}
+.counter{position:absolute;left:196px;right:0;top:468px;height:26px;background:linear-gradient(#f0eee9,#c9c4bb);box-shadow:0 4px 6px #0004;border-radius:3px}
+.hood{position:absolute;left:770px;top:226px;width:170px;height:104px}
+.hood::before{content:"";position:absolute;inset:0;background:linear-gradient(#d0d6da,#a8b0b5);clip-path:polygon(30% 0,70% 0,100% 85%,100% 100%,0 100%,0 85%)}
+
+/* sink */
+.sink{left:212px;top:372px;width:200px;height:110px}
+.sink .basin{position:absolute;left:10px;right:10px;bottom:10px;height:30px;border-radius:0 0 40px 40px;background:linear-gradient(#7d8a92,#b9c3c8);box-shadow:inset 0 6px 8px #0006}
+.sink .tap{position:absolute;left:80px;top:2px;width:44px;height:60px;border:9px solid #aab4ba;border-bottom:none;border-left-width:0;border-radius:0 30px 0 0}
+.sink .tapbase{position:absolute;left:112px;top:52px;width:22px;height:30px;background:linear-gradient(90deg,#9aa5ab,#e8eef0);border-radius:4px}
+.sink .water{position:absolute;left:73px;top:40px;width:8px;height:42px;background:linear-gradient(#8fd3ff,#4ab3ff);border-radius:4px;opacity:0;transition:opacity .2s}
+.sink.busy .water{opacity:.85;animation:flow .3s linear infinite}
+@keyframes flow{50%{filter:brightness(1.3)}}
+
+/* toaster */
+.toaster{left:430px;top:398px;width:96px;height:72px}
+.toaster .body{position:absolute;inset:14px 0 0 0;border-radius:18px 18px 6px 6px;background:linear-gradient(90deg,#b8c1c6,#f4f7f8 40%,#b8c1c6);box-shadow:0 3px 6px #0004}
+.toaster .slotx{position:absolute;top:16px;width:30px;height:6px;border-radius:3px;background:#333}
+.toaster .s1{left:14px}.toaster .s2{left:52px}
+.toaster .lever{position:absolute;right:-6px;top:34px;width:10px;height:10px;background:#333;border-radius:2px;transition:top .2s}
+.toaster.busy .lever{top:52px}
+.toaster.busy .slotx{background:#ff7a1a;box-shadow:0 0 10px #ff7a1a}
+
+/* plate */
+.plate{left:540px;top:392px;width:190px;height:80px}
+.plate .dish{position:absolute;left:5px;right:5px;bottom:0;height:46px;border-radius:50%;
+  background:radial-gradient(ellipse at center,#fff 0 48%,#e9eef2 50% 62%,#fff 64%);box-shadow:0 4px 6px #0004}
+.plate .food{position:absolute;left:0;right:0;bottom:8px;height:80px}
+.plate .food span{position:absolute;font-size:32px;transform:translate(-50%,0);animation:drop .35s}
+@keyframes drop{from{transform:translate(-50%,-40px);opacity:0}}
+.plate.complete .dish{box-shadow:0 0 0 4px var(--gold),0 0 30px var(--gold)}
+
+/* hob, pan, pot */
+.hob{position:absolute;left:750px;top:460px;width:200px;height:10px;background:#2d2d2d;border-radius:3px}
+.flame{position:absolute;top:448px;width:60px;height:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.flame::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at bottom,#4fb3ff 0 30%,#2a6dff 45%,transparent 70%);animation:flick .15s infinite alternate}
+@keyframes flick{to{transform:scaleY(1.25)}}
+.flame.on{opacity:1}
+.f1{left:768px}.f2{left:878px}
+.pan{left:740px;top:418px;width:110px;height:46px}
+.pan .p{position:absolute;left:14px;right:0;bottom:4px;height:22px;border-radius:0 0 40px 40px;background:linear-gradient(#444,#111);box-shadow:inset 0 3px 0 #666}
+.pan .h{position:absolute;left:-14px;bottom:16px;width:34px;height:8px;border-radius:4px;background:#222;transform:rotate(-12deg)}
+.pot{left:862px;top:378px;width:96px;height:86px}
+.pot .p{position:absolute;left:6px;right:6px;bottom:4px;height:56px;border-radius:6px 6px 14px 14px;background:linear-gradient(90deg,#8a959b,#e2e8ea 40%,#8a959b)}
+.pot .lid{position:absolute;left:2px;right:2px;top:12px;height:12px;border-radius:50% 50% 4px 4px;background:linear-gradient(#cdd5d9,#9aa5ab);transition:transform .3s}
+.pot .lid::after{content:"";position:absolute;left:50%;top:-8px;width:16px;height:8px;margin-left:-8px;border-radius:4px 4px 0 0;background:#333}
+.pot .ears::before,.pot .ears::after{content:"";position:absolute;top:36px;width:10px;height:8px;background:#555;border-radius:3px}
+.pot .ears::before{left:-2px}.pot .ears::after{right:-2px}
+.pot.busy .lid{animation:rattle .25s infinite}
+@keyframes rattle{50%{transform:translateY(-3px) rotate(2deg)}}
+
+/* oven */
+.oven{left:746px;top:496px;width:208px;height:190px;background:linear-gradient(#e7ebee,#c4cbd0);border-radius:6px;box-shadow:0 0 0 3px #9aa5ab}
+.oven .knobs{position:absolute;top:10px;left:20px;right:20px;display:flex;justify-content:space-between}
+.oven .knobs i{width:18px;height:18px;border-radius:50%;background:#333;box-shadow:inset 0 0 0 3px #666}
+.oven .win{position:absolute;left:18px;right:18px;top:48px;bottom:18px;border-radius:8px;background:#22282c;box-shadow:inset 0 0 0 4px #555;transition:background .3s}
+.oven .bar{position:absolute;left:30px;right:30px;top:38px;height:6px;border-radius:3px;background:#777}
+.oven.busy .win{background:radial-gradient(ellipse at bottom,#ff9b2f,#7a2a00);box-shadow:inset 0 0 0 4px #555,0 0 18px #ff8a1f}
+
+/* rice cooker */
+.rice{left:980px;top:384px;width:104px;height:86px}
+.rice .b{position:absolute;left:0;right:0;bottom:0;height:56px;border-radius:12px 12px 18px 18px;background:linear-gradient(90deg,#e9e4da,#fff 40%,#e9e4da);box-shadow:0 3px 6px #0004}
+.rice .lid{position:absolute;left:4px;right:4px;top:12px;height:26px;border-radius:50% 50% 6px 6px;background:linear-gradient(#fff,#ddd6c8)}
+.rice .led{position:absolute;left:44px;bottom:14px;width:16px;height:8px;border-radius:3px;background:#555}
+.rice.busy .led{background:#ff4747;box-shadow:0 0 8px #ff4747}
+.rice.ready .led{background:#3be27a;box-shadow:0 0 8px #3be27a}
+.steam{position:absolute;left:50%;top:-6px;width:10px;height:10px;border-radius:50%;background:#fff;opacity:0;pointer-events:none}
+.busy .steam{animation:steam 1.2s infinite}
+.busy .steam.s2{animation-delay:.4s;margin-left:-14px}
+.busy .steam.s3{animation-delay:.8s;margin-left:10px}
+@keyframes steam{0%{opacity:.8;transform:translateY(0) scale(.6)}100%{opacity:0;transform:translateY(-40px) scale(2)}}
+
+/* bin */
+.bin{left:1104px;top:598px;width:70px;height:92px}
+.bin .b{position:absolute;left:4px;right:4px;bottom:0;top:12px;border-radius:4px 4px 10px 10px;background:linear-gradient(90deg,#4c5a63,#7a8a94 40%,#4c5a63)}
+.bin .l{position:absolute;left:0;right:0;top:4px;height:12px;border-radius:6px;background:#3a454c}
+.bin .label{bottom:auto;top:-22px}
+
+/* cooking slot overlay */
+.slot{position:absolute;left:50%;top:-34px;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;z-index:6;pointer-events:none}
+.slot.show{display:flex}
+.slot .em{font-size:30px;filter:drop-shadow(0 2px 2px #0005)}
+.slot .bar{width:56px;height:7px;border-radius:4px;background:#0004;overflow:hidden;margin-top:2px}
+.slot .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#ffb320,#ff6a00)}
+.slot.ready .bar{display:none}
+.slot.ready .em{animation:bob .8s infinite}
+.slot.ready::after{content:"✨ Ready!";font-size:12px;font-weight:700;color:#fff;background:#1c8d4f;border-radius:8px;padding:1px 7px;margin-top:2px}
+@keyframes bob{50%{transform:translateY(-5px)}}
+
+/* storage panel */
+#storage{position:absolute;inset:0;background:#0007;display:grid;place-items:center;z-index:20;cursor:auto}
+#storage .panel{width:620px;max-height:520px;border-radius:18px;padding:18px 20px;color:var(--ink);box-shadow:0 20px 40px #0008;animation:pop .2s}
+#storage.fridgep .panel{background:linear-gradient(#f7fbfd,#dfeef5);border:6px solid #c5d0d6}
+#storage.cupp .panel{background:linear-gradient(#f3dcb8,#e2c08f);border:6px solid #8a5a32}
+#storage h3{margin:0 0 4px;font-size:22px}
+#storage p{margin:0 0 12px;font-size:14px;opacity:.7}
+.shelf{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.item{background:#fff;border:2px solid #0001;border-radius:14px;padding:10px 6px;text-align:center;font-size:13px;color:var(--ink);font-weight:500}
+.item .em{font-size:36px;display:block;margin-bottom:4px}
+.item:hover{border-color:var(--gold);transform:translateY(-2px);box-shadow:0 4px 10px #0003}
+.empty{padding:20px;text-align:center;opacity:.6}
+.close-row{text-align:right;margin-top:12px}
+.btn{font-size:15px;font-weight:600;padding:9px 18px;border-radius:12px;border:none;background:#2b2420;color:#fff}
+.btn.gold{background:linear-gradient(#ffd96a,#ffb320);color:#3a2600;box-shadow:0 3px 0 #b86f00}
+.btn.blue{background:linear-gradient(#3fa2ff,#1a6fe0);box-shadow:0 3px 0 #0d4a9e}
+.btn.ghost{background:#0001;color:inherit}
+
+/* glove cursor */
+#glove{position:fixed;left:0;top:0;pointer-events:none;z-index:40;display:none;will-change:transform}
+#glove.on{display:block}
+#glove svg{width:62px;height:62px;filter:drop-shadow(0 6px 6px #0006);animation:float 2.4s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-4px) rotate(-3deg)}}
+#glove .held{position:absolute;left:30px;top:22px;font-size:34px;filter:drop-shadow(0 2px 3px #0007)}
+#glove .tag{position:absolute;left:58px;top:52px;background:#2b2420e6;color:#fff;font-size:12px;padding:2px 8px;border-radius:8px;white-space:nowrap}
+#glove .tag:empty{display:none}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(30px);background:#2b2420f2;color:#fff;font-size:17px;
+  padding:12px 22px;border-radius:30px;opacity:0;transition:all .25s;z-index:45;pointer-events:none;max-width:90vw;text-align:center;box-shadow:0 8px 20px #0006}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.bad{background:#a8322ef2}
+#toast.good{background:#1c8d4ff2}
+
+/* modal */
+#modal{position:fixed;inset:0;background:#0009;display:grid;place-items:center;z-index:60;padding:16px}
+#modalBox{background:var(--cream);color:var(--ink);border-radius:22px;padding:22px 24px;width:min(520px,100%);max-height:90vh;overflow:auto;
+  box-shadow:0 20px 50px #000a;animation:pop .25s;position:relative}
+#modalBox h2{margin:0 0 6px;font-size:26px}
+#modalBox p{margin:6px 0;opacity:.85}
+#modalBox input[type=text]{width:100%;font-family:inherit;font-size:18px;padding:10px 14px;border-radius:12px;border:2px solid #0002;margin:6px 0 12px;background:#fff}
+#modalBox input[type=text]:focus{outline:none;border-color:#ffb320}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
+.avatars{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:10px;margin-top:8px}
+.av-opt{border:3px solid transparent;border-radius:12px;padding:4px;background:#fff;text-align:center;font-size:11px;color:var(--ink)}
+.av-opt .avatar{width:48px;height:48px;margin:0 auto 3px;border-width:2px}
+.av-opt.sel{border-color:#ffb320;background:#fff3d6}
+.stars{font-size:40px;letter-spacing:4px;margin:6px 0}
+.big-emoji{font-size:70px;text-align:center}
+.center{text-align:center}
+.muted{font-size:13px;opacity:.6}
+.linkish{background:none;border:none;color:#a8322e;font-size:13px;text-decoration:underline;padding:0}
+
+/* confetti */
+.confetti{position:fixed;top:-20px;width:10px;height:14px;z-index:70;pointer-events:none;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
+
+@media (max-width:700px){
+  .game-title{font-size:22px;top:auto;bottom:96px}
+  .hint{display:none}
+  #hud{width:200px}
+  #infoCard{left:12px;right:12px;width:auto;top:auto;bottom:100px}
+  #infoCard .flag{height:90px}
+  #legend{display:none}
+  .big-btn{font-size:19px;padding:12px 24px}
+}
+</style>
+</head>
+<body>
+
+<!-- GLOBE -->
+<div id="globeScreen" class="screen active">
+  <canvas id="globe"></canvas>
+  <div class="game-title">🌍 Chef's <span>Passport</span></div>
+  <div class="hint">Drag to spin · Scroll to zoom · Click any country</div>
+  <div id="hud">
+    <button class="profile-card" id="profileBtn" title="Edit profile">
+      <div class="bgflag" id="hudBgFlag"></div>
+      <div class="avatar" id="hudAvatar">👨‍🍳</div>
+      <div style="flex:1;min-width:0">
+        <div id="hudName">Chef</div>
+        <div class="small" id="hudCount">0 / 195 countries</div>
+        <div class="progress"><div id="hudBar"></div></div>
+      </div>
+    </button>
+    <button class="hud-switch" id="switchBtn">👥 Switch chef</button>
+  </div>
+  <div id="legend"><span><i class="sw" style="background:var(--red)"></i>To cook</span><span><i class="sw" style="background:var(--green)"></i>Unlocked</span></div>
+  <div id="zoomBtns"><button class="round" id="zIn" aria-label="Zoom in">+</button><button class="round" id="zOut" aria-label="Zoom out">−</button></div>
+  <button id="randomBtn" class="big-btn">🎲 Random Country</button>
+  <div id="infoCard" class="hidden"></div>
+  <div id="flightBanner" class="hidden"></div>
+</div>
+
+<!-- KITCHEN -->
+<div id="kitchen" class="screen">
+  <div id="stage">
+    <div class="wall"></div>
+    <div class="backsplash"></div>
+    <div class="floor"></div>
+    <div class="wallclock"></div>
+    <div class="k-title" id="kTitle"></div>
+
+    <div class="station frame globef" data-act="globe" style="left:232px;top:62px;width:140px;height:146px">
+      <div class="pic">🌍</div><div class="cap">Back to globe</div><div class="label">Leave kitchen</div>
+    </div>
+    <div class="station frame flagf" id="kFlag" style="left:394px;top:72px;width:176px;height:122px"></div>
+    <div class="station frame flora" id="kFlora" style="left:592px;top:62px;width:138px;height:146px"></div>
+    <div class="station frame fauna" id="kFauna" style="left:752px;top:62px;width:138px;height:146px"></div>
+
+    <div class="station recipe">
+      <div class="pin" style="left:20px"></div><div class="pin" style="right:20px"></div>
+      <div class="paper" id="kRecipe"></div>
+    </div>
+
+    <div class="station cup-upper" data-act="cupboard">
+      <div class="cupdoor"></div><div class="cupdoor"></div><div class="cupdoor"></div><div class="cupdoor"></div>
+      <div class="label">Cupboards</div>
+    </div>
+    <div class="hood"></div>
+
+    <div class="station fridge" data-act="fridge">
+      <div class="door d1"><div class="handle"></div></div>
+      <div class="door d2"><div class="handle"></div></div>
+      <div class="magnet" style="left:30px;top:220px">🧲</div>
+      <div class="magnet" style="left:60px;top:260px" id="kMagnet">🍕</div>
+      <div class="label" style="bottom:auto;top:-24px">Fridge</div>
+    </div>
+
+    <div class="station cup-lower" data-act="cupboard">
+      <div class="cupdoor"></div><div class="cupdoor"></div><div class="cupdoor"></div><div class="cupdoor"></div>
+    </div>
+    <div class="station cup-lower2" data-act="cupboard"><div class="cupdoor"></div><div class="cupdoor"></div></div>
+    <div class="counter"></div>
+
+    <div class="station sink" data-act="w">
+      <div class="tap"></div><div class="tapbase"></div><div class="water"></div><div class="basin"></div>
+      <div class="slot"></div><div class="label">Sink · wash</div>
+    </div>
+    <div class="station toaster" data-act="t">
+      <div class="body"></div><div class="slotx s1"></div><div class="slotx s2"></div><div class="lever"></div>
+      <div class="slot"></div><div class="label">Toaster · toast</div>
+    </div>
+    <div class="station plate" data-act="plate" id="kPlate">
+      <div class="dish"></div><div class="food" id="kFood"></div>
+      <div class="label">Serving plate</div>
+    </div>
+
+    <div class="hob"></div>
+    <div class="flame f1" id="flamePan"></div>
+    <div class="flame f2" id="flamePot"></div>
+    <div class="station pan" data-act="f">
+      <div class="h"></div><div class="p"></div>
+      <div class="slot"></div><div class="label">Frying pan · fry</div>
+    </div>
+    <div class="station pot" data-act="b">
+      <div class="ears"></div><div class="p"></div><div class="lid"></div>
+      <i class="steam"></i><i class="steam s2"></i><i class="steam s3"></i>
+      <div class="slot"></div><div class="label">Pot on the gas · boil</div>
+    </div>
+    <div class="station oven" data-act="o">
+      <div class="knobs"><i></i><i></i><i></i><i></i></div><div class="bar"></div><div class="win"></div>
+      <div class="slot" style="top:70px"></div><div class="label">Oven · bake</div>
+    </div>
+    <div class="station rice" data-act="r">
+      <div class="b"></div><div class="lid"></div><div class="led"></div>
+      <i class="steam"></i><i class="steam s2"></i><i class="steam s3"></i>
+      <div class="slot"></div><div class="label">Rice cooker · steam</div>
+    </div>
+    <div class="station bin" data-act="bin">
+      <div class="l"></div><div class="b"></div><div class="label">Put back</div>
+    </div>
+
+    <div id="storage" class="hidden"><div class="panel" id="storagePanel"></div></div>
+  </div>
+</div>
+
+<div id="glove">
+  <svg viewBox="0 0 64 64" aria-hidden="true">
+    <g fill="#fff" stroke="#3a3a3a" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M17 31 V12 a4.2 4.2 0 0 1 8.4 0 V27 V8 a4.2 4.2 0 0 1 8.4 0 V27 V10 a4.2 4.2 0 0 1 8.4 0 V29 V18 a4.2 4.2 0 0 1 8.4 0 V38 c0 9 -6 15 -15 15 h-4 c-6 0 -10 -3 -13 -8 L4.5 33 a4.4 4.4 0 0 1 7 -5.2 z"/>
+      <rect x="18" y="50" width="30" height="11" rx="4" fill="#ffefc9"/>
+      <path d="M25 50 v11 M33 50 v11 M41 50 v11" stroke="#e6c98c" stroke-width="1.6"/>
+    </g>
+  </svg>
+  <div class="held" id="gloveHeld"></div>
+  <div class="tag" id="gloveTag"></div>
+</div>
+
+<div id="fade"><div><div class="big" id="fadeBig">✈️</div><div class="t" id="fadeT"></div><div class="s" id="fadeS"></div></div></div>
+<div id="toast"></div>
+<div id="modal" class="hidden"><div id="modalBox"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="data.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
