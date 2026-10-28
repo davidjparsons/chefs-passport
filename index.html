@@ -35,6 +35,73 @@ button{font-family:inherit;cursor:pointer}
 .profile-card:hover{border-color:#fff6}
 .hud-switch{margin-top:6px;font-size:13px;padding:5px 12px;border-radius:20px;border:1px solid var(--panel-line);background:var(--panel);color:#fff}
 .hud-switch:hover{border-color:#fff6}
+.hud-row{display:flex;gap:6px;flex-wrap:wrap}
+.cloud{font-size:11px;opacity:.7;margin:5px 0 0 4px;text-shadow:0 1px 2px #000}
+.cloud:empty{display:none}
+
+/* leaderboard */
+.lb{display:flex;flex-direction:column;gap:6px;max-height:55vh;overflow:auto;margin:10px 0}
+.lb-row{display:flex;align-items:center;gap:10px;background:#fff;border-radius:12px;padding:7px 10px;border:2px solid #0001}
+.lb-row.me{border-color:#ffb320;background:#fff3d6}
+.lb-rk{width:36px;text-align:center;font-weight:700;font-size:17px;flex:none}
+.lb-row .avatar{width:36px;height:36px;border-width:2px;font-size:20px}
+.lb-main{flex:1;min-width:0}
+.lb-main b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lb-bar{height:8px;border-radius:6px;background:#0001;overflow:hidden;margin-top:4px}
+.lb-bar i{display:block;height:100%;background:linear-gradient(90deg,#2fbf71,#9be15d)}
+.lb-n{font-weight:700;font-size:18px;min-width:38px;text-align:right}
+.lb-gap{text-align:center;opacity:.45;line-height:1}
+.you{font-size:11px;background:#ffb320;color:#3a2600;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:2px}
+
+/* passport */
+#modalBox.passport-box{background:transparent;box-shadow:none;padding:0;width:min(430px,100%);overflow:visible;max-height:none}
+.pp-book{position:relative;width:min(100%,calc(72vh * 5 / 7));aspect-ratio:5/7;margin:0 auto;perspective:1400px;touch-action:pan-y}
+.pp-page{position:absolute;inset:0;border-radius:6px 16px 16px 6px;overflow:hidden;transform-origin:left center;
+  transition:transform .22s ease-in,opacity .22s;box-shadow:0 18px 40px #000a,inset 10px 0 14px -8px #0006}
+.pp-page.out-fwd{transform:rotateY(-95deg);opacity:.3}
+.pp-page.out-back{transform:rotateY(95deg);opacity:.3}
+.pp-page.in-fwd{transform:rotateY(95deg);opacity:.3;transition:none}
+.pp-page.in-back{transform:rotateY(-95deg);opacity:.3;transition:none}
+.pp-cover{background:radial-gradient(circle at 30% 20%,#2f5fd0,#163a8f 60%,#0f2a6b);color:#f4d27a;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;cursor:pointer;text-align:center}
+.pp-cover::before{content:"";position:absolute;inset:12px;border:2px solid #f4d27a55;border-radius:4px 12px 12px 4px;pointer-events:none}
+.pp-title{font-size:40px;font-weight:700;letter-spacing:8px;text-shadow:0 2px 0 #0004}
+.pp-sub{font-size:12px;letter-spacing:3px;opacity:.85}
+.pp-emblem{width:128px;height:128px;border-radius:50%;border:3px solid #f4d27a;display:grid;place-items:center;font-size:66px;position:relative}
+.pp-emblem span{position:absolute;right:-8px;bottom:-6px;font-size:36px}
+.pp-holder{font-size:21px;font-weight:600;letter-spacing:1px}
+.pp-tap{font-size:12px;opacity:.75;animation:bob 1.4s infinite}
+.pp-paper{background:#f7f1e1;color:#2b2420;padding:22px 20px;
+  background-image:repeating-radial-gradient(circle at 50% 115%,transparent 0 12px,#2563eb14 12px 13px)}
+.pp-head{display:flex;justify-content:space-between;font-size:11px;letter-spacing:2px;color:#1e3a8a;font-weight:600;
+  border-bottom:1px solid #1e3a8a33;padding-bottom:6px;margin-bottom:16px}
+.pp-info{display:flex;gap:16px;align-items:flex-start}
+.pp-photo{width:112px;height:144px;border-radius:6px;background:#ffe9c4;display:grid;place-items:center;font-size:64px;overflow:hidden;
+  border:2px solid #1e3a8a33;flex:none}
+.pp-photo img{width:100%;height:100%;object-fit:cover}
+.pp-field{margin-bottom:11px}
+.pp-field small{display:block;font-size:10px;letter-spacing:1px;color:#1e3a8a;opacity:.85;text-transform:uppercase}
+.pp-field b{font-size:17px;word-break:break-word}
+.pp-big{text-align:center;margin-top:22px;font-size:15px}
+.pp-big b{display:block;font-size:44px;color:#1e3a8a;line-height:1}
+.pp-mrz{position:absolute;left:20px;right:20px;bottom:30px;font-family:Consolas,monospace;font-size:12.5px;letter-spacing:2px;
+  color:#2b2420aa;word-break:break-all;line-height:1.5}
+.pp-stamps{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,1fr);gap:8px;height:calc(100% - 62px)}
+.stamp{--ink:#1d4ed8;color:var(--ink);border:3px double var(--ink);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;padding:6px 8px;opacity:.9;mix-blend-mode:multiply;font-weight:600;line-height:1.1;
+  margin:auto;width:94%;height:94%;animation:stampin .35s ease-out backwards}
+@keyframes stampin{from{transform:scale(1.6);opacity:0}}
+.stamp.st-round{border-radius:50%}
+.stamp.st-rect{border-radius:8px}
+.stamp.st-oval{border-radius:45%/32%}
+.st-top{font-size:10px;letter-spacing:1px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-flag img{height:24px;margin:4px 0;filter:saturate(.85);border-radius:2px;display:block}
+.st-date{font-size:12px;font-weight:700}
+.st-dish{font-size:10px;opacity:.85;margin-top:2px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pp-foot{position:absolute;bottom:9px;left:0;right:0;text-align:center;font-size:11px;opacity:.5}
+.pp-empty{display:grid;place-items:center;height:75%;text-align:center;opacity:.65;font-size:16px;padding:0 20px}
+.pp-nav{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:14px;color:#fff;font-size:14px}
+.pp-nav .round:disabled{opacity:.3}
 .plist{display:flex;flex-direction:column;gap:8px;margin:10px 0 14px;max-height:300px;overflow:auto}
 .prow{display:flex;align-items:center;gap:10px;background:#fff;border:2px solid #0001;border-radius:14px;padding:8px 10px}
 .prow.cur{border-color:#ffb320;background:#fff3d6}
@@ -97,7 +164,7 @@ button{font-family:inherit;cursor:pointer}
 #fade .s{font-size:16px;opacity:.7}
 
 /* ---------- KITCHEN ---------- */
-#kitchen{background:#3b2a20}
+#kitchen{background:#3b2a20;touch-action:none;-webkit-touch-callout:none}
 #stage{position:absolute;left:50%;top:50%;width:1200px;height:720px;transform-origin:center center;overflow:hidden;
   border-radius:8px;box-shadow:0 0 60px #000a;cursor:none}
 #kitchen.touch #stage{cursor:auto}
@@ -259,7 +326,7 @@ button{font-family:inherit;cursor:pointer}
 
 /* storage panel */
 #storage{position:absolute;inset:0;background:#0007;display:grid;place-items:center;z-index:20;cursor:auto}
-#storage .panel{width:620px;max-height:520px;border-radius:18px;padding:18px 20px;color:var(--ink);box-shadow:0 20px 40px #0008;animation:pop .2s}
+#storage .panel{width:620px;max-height:520px;overflow:auto;touch-action:pan-y;border-radius:18px;padding:18px 20px;color:var(--ink);box-shadow:0 20px 40px #0008;animation:pop .2s}
 #storage.fridgep .panel{background:linear-gradient(#f7fbfd,#dfeef5);border:6px solid #c5d0d6}
 #storage.cupp .panel{background:linear-gradient(#f3dcb8,#e2c08f);border:6px solid #8a5a32}
 #storage h3{margin:0 0 4px;font-size:22px}
@@ -342,7 +409,12 @@ button{font-family:inherit;cursor:pointer}
         <div class="progress"><div id="hudBar"></div></div>
       </div>
     </button>
-    <button class="hud-switch" id="switchBtn">👥 Switch chef</button>
+    <div class="hud-row">
+      <button class="hud-switch" id="switchBtn">👥 Switch chef</button>
+      <button class="hud-switch" id="passportBtn">🛂 Passport</button>
+      <button class="hud-switch" id="leaderBtn">🏆 Leaderboard</button>
+    </div>
+    <div class="cloud" id="hudCloud"></div>
   </div>
   <div id="legend"><span><i class="sw" style="background:var(--red)"></i>To cook</span><span><i class="sw" style="background:var(--green)"></i>Unlocked</span></div>
   <div id="zoomBtns"><button class="round" id="zIn" aria-label="Zoom in">+</button><button class="round" id="zOut" aria-label="Zoom out">−</button></div>
@@ -452,6 +524,7 @@ button{font-family:inherit;cursor:pointer}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+<script src="config.js"></script>
 <script src="data.js"></script>
 <script src="game.js"></script>
 </body>

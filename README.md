@@ -15,11 +15,31 @@ Open `index.html` in any modern browser — no install, no build step, no graphi
 - Put everything on the **serving plate** to finish the dish and unlock the country.
 - Click the **🌍 globe picture** on the kitchen wall to leave at any time.
 
-## Profiles
+## Profiles, passport and leaderboard
 
 - Several chefs can share one browser — use **👥 Switch chef**.
 - Dress your profile in the flag of any country you've unlocked.
-- Progress is saved in your browser. Use **👥 Switch chef → 📋 Backup code** to move it to another browser or computer, and **📥 Restore** to load it.
+- **🛂 Passport** opens a flip-book passport: your details on the first page, then a stamp for every place you've unlocked with the date you unlocked it.
+- **🏆 Leaderboard** ranks every chef in the world by places unlocked. Ties go to whoever reached that number first.
+- Progress is saved in your browser and, when the leaderboard is switched on, online too. There are no passwords: **👥 Switch chef → 📋 Backup code** is your key. Paste it into **📥 Restore** on another device to carry on as the same chef. Codes from older versions still work.
+
+## Turning on the World Leaderboard
+
+The leaderboard uses a free [Supabase](https://supabase.com) database. Without it the game still works, and the leaderboard just shows the chefs on that device.
+
+1. Create a free account at supabase.com and click **New project** (any name, any region; save the database password somewhere, though the game doesn't need it).
+2. When it's ready, open **SQL Editor → New query**, paste everything from `supabase-setup.sql`, and click **Run**.
+3. Open **Project Settings → API Keys** (or **Settings → API**) and copy the **Project URL** and the **anon / publishable** key.
+4. Put them in `config.js`:
+   ```js
+   supabaseUrl: 'https://your-project.supabase.co',
+   supabaseKey: 'your-anon-or-publishable-key',
+   ```
+5. Upload `config.js` to GitHub. Within a minute or two the HUD shows "☁️ Saved online".
+
+The anon/publishable key is meant to be public. The database only lets players read the leaderboard and save chefs they hold the backup code for. The secret key (service role) must never go in `config.js`.
+
+Because there are no accounts, a determined player could fake progress. That's fine for a fun game, but don't use it for anything with prizes.
 
 ## Editing the game
 

@@ -159,16 +159,48 @@ const $ = id => document.getElementById(id);
 // =====================================================================
 // SAVE / PROFILE
 // =====================================================================
-// All profiles live in one record: { current: id, profiles: { id: {name, unlocked, avatar, last} } }.
-// `save` always points at the active profile.
+// All profiles live in one record: { current: id, profiles: { id: profile } }, where a profile is
+//   { name, unlocked: [ids], dates: {id: ISO date | null}, avatar, last, joined, cloudId, secret }.
+// dates[id] is null for places unlocked before dates were recorded. cloudId + secret identify the
+// chef online (no password: the backup code carries them). `save` always points at the active profile.
 const STORE_KEY = 'chefsPassport.v2';
 const OLD_STORE_KEY = 'chefsPassport.v1';
-const blankProfile = name => ({ name: name || '', unlocked: [], avatar: null, last: null });
+const nowIso = () => new Date().toISOString();
+const randHex = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), b => b.toString(16).padStart(2, '0')).join('');
+const newUuid = () => {
+  const h = randHex(16).split('');
+  h[12] = '4'; h[16] = ((parseInt(h[16], 16) & 3) | 8).toString(16);
+  const s = h.join('');
+  return `${s.slice(0, 8)}-${s.slice(8, 12)}-${s.slice(12, 16)}-${s.slice(16, 20)}-${s.slice(20)}`;
+};
+const blankProfile = name => ({ name: name || '', unlocked: [], dates: {}, avatar: null, last: null, joined: nowIso(), cloudId: newUuid(), secret: randHex(16) });
+// Fills in anything an older save or backup code is missing, so old progress keeps working.
+function normalizeProfile(p) {
+  p = Object.assign(blankProfile(), p);
+  p.unlocked = [...new Set(p.unlocked)].filter(id => byId[id]);
+  p.dates = Object.assign({}, p.dates);
+  for (const id of p.unlocked) if (!(id in p.dates)) p.dates[id] = null;
+  return p;
+}
 const newProfileId = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 let db = loadDb();
 let save = db.profiles[db.current];
 let unlocked = new Set(save.unlocked);
 persist();   // records that old progress was imported, so it is never imported twice
+
+// Adds places from {id: date} into a profile, keeping the earliest known date for each.
+function mergeUnlocks(p, map) {
+  let changed = false;
+  for (const [id, dt] of Object.entries(map || {})) {
+    if (!byId[id]) continue;
+    if (!p.unlocked.includes(id)) {
+      p.unlocked.push(id); p.dates[id] = dt || null; changed = true;
+      if (p === save) unlocked.add(id);
+    } else if (dt && (!p.dates[id] || Date.parse(dt) < Date.parse(p.dates[id]))) { p.dates[id] = dt; changed = true; }
+  }
+  return changed;
+}
+const unlockMap = p => Object.fromEntries(p.unlocked.map(id => [id, p.dates[id] || null]));
 
 function loadDb() {
   let d = null, old = null;
@@ -187,6 +219,7 @@ function loadDb() {
     else { const id = newProfileId(); d.profiles[id] = imported; d.current = id; }
   }
   d.importedV1 = true;
+  for (const k of Object.keys(d.profiles)) d.profiles[k] = normalizeProfile(d.profiles[k]);
   return d;
 }
 function persist() {
@@ -200,6 +233,212 @@ function switchProfile(id) {
   unlocked = new Set(save.unlocked);
   persist(); renderHud(); selectCountry(null); dirty = true;
   if (save.last && byId[save.last]) setCenter([byId[save.last].lon, byId[save.last].lat]);
+  queueSync();
+}
+
+// =====================================================================
+// ONLINE SAVE + WORLD LEADERBOARD (Supabase; settings in config.js)
+// =====================================================================
+// Every chef is saved online under their cloudId whenever their progress changes. Reads go
+// through the public `leaderboard` view; writes go through save_chef(), which checks the secret.
+const CFG = window.CHEFS_CONFIG || {};
+const cloudOn = !!(CFG.supabaseUrl && CFG.supabaseKey);
+let cloudState = cloudOn ? 'syncing' : 'off';
+let myRank = null;
+
+async function sb(path, opts = {}) {
+  // legacy "anon" keys are JWTs and also go in Authorization; newer "sb_publishable_" keys only go in apikey
+  const auth = CFG.supabaseKey.startsWith('eyJ') ? { Authorization: 'Bearer ' + CFG.supabaseKey } : {};
+  const r = await fetch(CFG.supabaseUrl.replace(/\/+$/, '') + path, Object.assign({}, opts, {
+    headers: Object.assign({ apikey: CFG.supabaseKey, 'Content-Type': 'application/json' }, auth, opts.headers || {})
+  }));
+  if (!r.ok) throw new Error(r.status + ' ' + await r.text());
+  return r;
+}
+
+async function syncProfile(p) {
+  // pull first, so progress made on another device with the same backup code is kept
+  const rows = await (await sb(`/rest/v1/leaderboard?id=eq.${p.cloudId}&select=unlocked,joined_at`)).json();
+  if (rows[0]) {
+    mergeUnlocks(p, rows[0].unlocked);
+    if (rows[0].joined_at && Date.parse(rows[0].joined_at) < Date.parse(p.joined)) p.joined = rows[0].joined_at;
+  }
+  await sb('/rest/v1/rpc/save_chef', {
+    method: 'POST',
+    body: JSON.stringify({ p_id: p.cloudId, p_secret: p.secret, p_name: p.name || 'Chef', p_avatar: p.avatar, p_unlocked: unlockMap(p), p_joined_at: p.joined })
+  });
+}
+
+let syncTimer = null, syncing = false, syncAgain = false;
+function queueSync(delay = 500) {
+  if (!cloudOn) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(runSync, delay);
+}
+async function runSync() {
+  if (syncing) { syncAgain = true; return; }
+  syncing = true; cloudState = 'syncing'; renderHud();
+  persist();
+  try {
+    for (const p of Object.values(db.profiles)) if (p.name) await syncProfile(p);
+    cloudState = 'ok';
+  } catch (e) {
+    console.warn('Online save failed:', e);
+    cloudState = 'offline';
+    clearTimeout(syncTimer); syncTimer = setTimeout(runSync, 30000);   // try again later
+  }
+  syncing = false;
+  persist(); renderHud(); dirty = true;
+  if (syncAgain) { syncAgain = false; runSync(); }
+}
+function cloudDelete(p) {
+  if (!cloudOn) return;
+  sb('/rest/v1/rpc/delete_chef', { method: 'POST', body: JSON.stringify({ p_id: p.cloudId, p_secret: p.secret }) })
+    .catch(e => console.warn('Online delete failed:', e));
+}
+
+// Time a chef reached their current total — used to break ties on this device.
+const reachedAt = p => p.unlocked.reduce((t, id) => Math.max(t, p.dates[id] ? Date.parse(p.dates[id]) : 0), 0) || Date.parse(p.joined);
+const medal = n => ['🥇', '🥈', '🥉'][n - 1] || '#' + n;
+
+async function openLeaderboard() {
+  showModal(`<h2>🏆 World Leaderboard</h2>
+    <p class="muted">Ranked by places unlocked · ties go to whoever got there first</p>
+    <div class="lb" id="lbList"><div class="empty">Loading…</div></div>
+    <p class="muted" id="lbNote"></p>
+    <div class="btn-row"><button class="btn ghost" id="lbPassport" style="margin-right:auto">🛂 My passport</button><button class="btn gold" id="lbClose">Close</button></div>`);
+  $('lbClose').onclick = hideModal;
+  $('lbPassport').onclick = () => openPassport();
+  const mine = new Map(Object.values(db.profiles).map(p => [p.cloudId, p]));
+  let rows = null, extra = null, note = '';
+  if (cloudOn) {
+    try {
+      clearTimeout(syncTimer); await runSync();
+      rows = await (await sb('/rest/v1/leaderboard?select=id,name,avatar,count,reached_at&order=count.desc,reached_at.asc,id.asc&limit=100')).json();
+      const at = rows.findIndex(r => r.id === save.cloudId);
+      myRank = at >= 0 ? at + 1 : null;
+      if (at < 0 && unlocked.size) {   // not in the top 100: work out where the current chef is
+        const me = (await (await sb(`/rest/v1/leaderboard?id=eq.${save.cloudId}&select=id,name,avatar,count,reached_at`)).json())[0];
+        if (me) {
+          const ahead = encodeURIComponent(`(count.gt.${me.count},and(count.eq.${me.count},reached_at.lt."${me.reached_at}"))`);
+          const r = await sb(`/rest/v1/leaderboard?select=id&or=${ahead}&limit=1`, { headers: { Prefer: 'count=exact' } });
+          const total = +((r.headers.get('content-range') || '').split('/')[1]);
+          if (!isNaN(total)) { myRank = total + 1; extra = Object.assign(me, { rank: myRank }); }
+        }
+      }
+      if (!rows.length) note = 'Nobody is on the board yet — cook a dish to claim first place!';
+    } catch (e) {
+      console.warn('Leaderboard failed:', e);
+      rows = null; note = '⚠️ Couldn\'t reach the online leaderboard right now — showing the chefs on this device.';
+    }
+  } else {
+    note = 'The online leaderboard isn\'t switched on yet, so this shows the chefs on this device.';
+  }
+  if (!rows) {
+    rows = Object.values(db.profiles).filter(p => p.name)
+      .map(p => ({ id: p.cloudId, name: p.name, avatar: p.avatar, count: p.unlocked.length, reached_at: new Date(reachedAt(p)).toISOString() }))
+      .sort((a, b) => b.count - a.count || Date.parse(a.reached_at) - Date.parse(b.reached_at));
+  }
+  if (!$('lbList')) return;   // closed while loading
+  const row = (r, rank) => {
+    const p = mine.get(r.id);
+    return `<div class="lb-row ${p ? 'me' : ''}" title="Reached ${r.count} on ${fmtDate(r.reached_at)}">
+      <span class="lb-rk">${medal(rank)}</span>
+      <div class="avatar">${avatarHTML(r.avatar)}</div>
+      <div class="lb-main"><b>${esc(r.name)}${p ? `<span class="you">${p === save ? 'you' : 'this device'}</span>` : ''}</b>
+        <div class="lb-bar"><i style="width:${(r.count / TOTAL * 100).toFixed(1)}%"></i></div></div>
+      <span class="lb-n">${r.count}</span></div>`;
+  };
+  $('lbList').innerHTML = rows.map((r, i) => row(r, i + 1)).join('') + (extra ? `<div class="lb-gap">⋮</div>${row(extra, extra.rank)}` : '')
+    || '<div class="empty">No chefs yet.</div>';
+  $('lbNote').textContent = note;
+}
+
+// =====================================================================
+// PASSPORT FLIPBOOK
+// =====================================================================
+const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+const STAMP_INKS = ['#1d4ed8', '#b91c1c', '#047857', '#7c3aed', '#c2410c', '#0e7490', '#be185d'];
+let passportKeys = null;   // arrow-key handler while the passport is open
+
+function openPassport(atLastPage) {
+  persist();
+  const p = save;
+  const stamps = p.unlocked.map(id => ({ c: byId[id], d: p.dates[id] })).filter(s => s.c)
+    .sort((a, b) => (a.d ? Date.parse(a.d) : 0) - (b.d ? Date.parse(b.d) : 0));
+  const PER_PAGE = 6;
+  const pages = ['cover', 'info'];
+  if (!stamps.length) pages.push([]);
+  for (let i = 0; i < stamps.length; i += PER_PAGE) pages.push(stamps.slice(i, i + PER_PAGE));
+  let at = atLastPage ? pages.length - 1 : 0;
+
+  const stampHTML = (s, i) => {
+    const h = [...s.c.id].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+    const ink = STAMP_INKS[h % STAMP_INKS.length], rot = (h % 15) - 7, shape = ['st-round', 'st-rect', 'st-oval'][h % 3];
+    return `<div class="stamp ${shape}" style="--ink:${ink};transform:rotate(${rot}deg);animation-delay:${i * 70}ms">
+      <div class="st-top">★ ${esc(s.c.name.toUpperCase())} ★</div>
+      <div class="st-flag">${flagImg(s.c.iso, 80)}</div>
+      <div class="st-date">${s.d ? fmtDate(s.d) : 'Before ' + fmtDate(p.joined)}</div>
+      <div class="st-dish">🍽️ ${esc(s.c.dish)}</div></div>`;
+  };
+  const mrzName = (p.name || 'CHEF').toUpperCase().replace(/[^A-Z0-9]/g, '<');
+  const pageHTML = n => {
+    const pg = pages[n];
+    if (pg === 'cover') return `<div class="pp-page pp-cover" id="ppCover">
+      <div class="pp-title">PASSPORT</div><div class="pp-sub">CHEF'S PASSPORT · WORLD KITCHEN</div>
+      <div class="pp-emblem">🌍<span>🍳</span></div>
+      <div class="pp-holder">${esc(p.name || 'Chef')}</div><div class="pp-tap">Tap to open</div></div>`;
+    if (pg === 'info') return `<div class="pp-page pp-paper">
+      <div class="pp-head"><span>CHEF'S PASSPORT</span><span>No. ${p.cloudId.slice(0, 8).toUpperCase()}</span></div>
+      <div class="pp-info">
+        <div class="pp-photo">${p.avatar ? flagImg(p.avatar, 160) : '👨‍🍳'}</div>
+        <div>
+          <div class="pp-field"><small>Username</small><b>${esc(p.name || 'Chef')}</b></div>
+          <div class="pp-field"><small>Date joined</small><b>${fmtDate(p.joined)}</b></div>
+          <div class="pp-field"><small>Profile look</small><b>${p.avatar ? esc((COUNTRIES.find(c => c.iso === p.avatar) || {}).name || '') : 'Chef'}</b></div>
+          ${myRank && p === save ? `<div class="pp-field"><small>World ranking</small><b>${medal(myRank)}</b></div>` : ''}
+        </div>
+      </div>
+      <div class="pp-big"><b>${p.unlocked.length}</b>of ${TOTAL} places unlocked</div>
+      <div class="pp-mrz">P&lt;CHEF&lt;${esc(mrzName)}&lt;&lt;${'&lt;'.repeat(12)}<br>${p.cloudId.replace(/-/g, '').slice(0, 20).toUpperCase()}&lt;${p.unlocked.length}&lt;&lt;</div>
+      <div class="pp-foot">1</div></div>`;
+    return `<div class="pp-page pp-paper">
+      <div class="pp-head"><span>VISAS · STAMPS</span><span>${esc(p.name || 'Chef')}</span></div>
+      ${pg.length ? `<div class="pp-stamps">${pg.map(stampHTML).join('')}</div>`
+        : '<div class="pp-empty">No stamps yet.<br>Cook your first dish to get stamped! ✈️</div>'}
+      <div class="pp-foot">${n}</div></div>`;
+  };
+
+  showModal(`<div class="pp-book" id="ppBook"></div>
+    <div class="pp-nav"><button class="round" id="ppPrev" aria-label="Previous page">‹</button>
+      <span id="ppNum"></span><button class="round" id="ppNext" aria-label="Next page">›</button></div>
+    <div class="btn-row" style="justify-content:center"><button class="btn gold" id="ppClose">Close passport</button></div>`);
+  $('modalBox').className = 'passport-box';
+  const book = $('ppBook');
+  const render = cls => {
+    book.innerHTML = pageHTML(at);
+    const pg = book.firstElementChild;
+    if (cls) { pg.classList.add(cls); void pg.offsetWidth; pg.classList.remove(cls); }   // reflow, then animate in
+    $('ppPrev').disabled = at === 0; $('ppNext').disabled = at === pages.length - 1;
+    $('ppNum').textContent = at === 0 ? 'Cover' : `Page ${at} of ${pages.length - 1}`;
+    if ($('ppCover')) $('ppCover').onclick = () => go(1);
+  };
+  let turning = false;
+  const go = n => {
+    if (turning || n < 0 || n >= pages.length || n === at) return;
+    const fwd = n > at;
+    turning = true;
+    book.firstElementChild.classList.add(fwd ? 'out-fwd' : 'out-back');
+    setTimeout(() => { at = n; render(fwd ? 'in-fwd' : 'in-back'); turning = false; }, 210);
+  };
+  $('ppPrev').onclick = () => go(at - 1);
+  $('ppNext').onclick = () => go(at + 1);
+  $('ppClose').onclick = hideModal;
+  let swipe = null;
+  book.onpointerdown = e => { swipe = e.clientX; };
+  book.onpointerup = e => { if (swipe !== null && Math.abs(e.clientX - swipe) > 40) go(at + (e.clientX < swipe ? 1 : -1)); swipe = null; };
+  passportKeys = e => { if (e.key === 'ArrowRight') go(at + 1); if (e.key === 'ArrowLeft') go(at - 1); };
+  render();
 }
 
 // ---- backup codes: move every chef's progress to another browser, computer or copy of the game ----
@@ -207,7 +446,8 @@ function showBackup() {
   persist();
   const code = 'CHEFS1:' + btoa(unescape(encodeURIComponent(JSON.stringify({ profiles: db.profiles }))));
   showModal(`<h2>📋 Backup code</h2>
-    <p>This code holds every chef's progress. Copy it, then open the other copy of the game and choose <b>👥 Switch chef → 📥 Restore</b>.</p>
+    <p>This code holds every chef's progress. Copy it, then open the game on another device or browser and choose <b>👥 Switch chef → 📥 Restore</b>.</p>
+    <p class="muted">🔑 It's also your key to the online leaderboard — anyone with it can play as your chefs, so keep it to yourself.</p>
     <textarea id="bkText" readonly style="width:100%;height:120px;font-size:12px;border-radius:10px;padding:8px">${esc(code)}</textarea>
     <div class="btn-row"><button class="btn ghost" id="bkBack">Back</button><button class="btn gold" id="bkDo">Copy</button></div>`);
   const ta = $('bkText');
@@ -245,19 +485,26 @@ function showRestore() {
     persist();
     let firstId = null, added = 0;
     for (const p of list) {
-      const prof = Object.assign(blankProfile(), p);
-      prof.unlocked = prof.unlocked.filter(id => byId[id]);
+      const prof = normalizeProfile(p);   // codes from older versions get dates/online IDs filled in here
+      const sameChef = Object.entries(db.profiles).find(([, q]) => q.cloudId === prof.cloudId);
+      if (sameChef) {   // the same online chef: just combine progress
+        const [, q] = sameChef;
+        if (mergeUnlocks(q, unlockMap(prof))) added++;
+        if (Date.parse(prof.joined) < Date.parse(q.joined)) q.joined = prof.joined;
+        firstId = firstId || sameChef[0]; continue;
+      }
       const key = prof.name + '|' + [...prof.unlocked].sort().join(',');
       const dupe = Object.entries(db.profiles).find(([, q]) => q.name + '|' + [...q.unlocked].sort().join(',') === key);
       if (dupe) { firstId = firstId || dupe[0]; continue; }
       // a chef with the same name and less progress here is replaced instead of duplicated
       const same = Object.entries(db.profiles).find(([, q]) => q.name === prof.name && q.unlocked.length <= prof.unlocked.length);
+      if (same) cloudDelete(same[1]);
       const id = same ? same[0] : newProfileId();
       db.profiles[id] = prof; firstId = firstId || id; added++;
     }
     // drop an untouched blank chef left over from first opening the game
     for (const [id, q] of Object.entries(db.profiles))
-      if (Object.keys(db.profiles).length > 1 && !q.unlocked.length && (!q.name || q.name === 'Chef')) delete db.profiles[id];
+      if (Object.keys(db.profiles).length > 1 && !q.unlocked.length && (!q.name || q.name === 'Chef')) { cloudDelete(q); delete db.profiles[id]; }
     if (!db.profiles[db.current]) db.current = firstId;
     switchProfile(firstId || db.current);
     hideModal();
@@ -297,10 +544,11 @@ function openProfiles() {
   });
   box.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
     const id = b.dataset.del, p = db.profiles[id];
-    showModal(`<h2>Delete ${esc(p.name || 'Chef')}?</h2><p>Their ${p.unlocked.length} unlocked places will be gone for good.</p>
+    showModal(`<h2>Delete ${esc(p.name || 'Chef')}?</h2><p>Their ${p.unlocked.length} unlocked places will be gone for good${cloudOn ? ', and they\'ll be removed from the World Leaderboard' : ''}.</p>
       <div class="btn-row"><button class="btn ghost" id="dNo">Keep</button><button class="btn" style="background:#a8322e" id="dYes">Delete</button></div>`);
     $('dNo').onclick = openProfiles;
     $('dYes').onclick = () => {
+      cloudDelete(p);
       delete db.profiles[id];
       if (id === db.current) switchProfile(Object.keys(db.profiles)[0]); else persist();
       openProfiles();
@@ -327,6 +575,7 @@ function renderHud() {
   $('hudBar').style.width = (unlocked.size / TOTAL * 100) + '%';
   $('hudAvatar').innerHTML = avatarHTML(save.avatar);
   $('hudBgFlag').style.backgroundImage = save.avatar ? `url(${flagUrl(save.avatar, 320)})` : 'none';
+  $('hudCloud').textContent = { off: '', syncing: '☁️ Saving online…', ok: '☁️ Saved online · on the World Leaderboard', offline: '⚠️ Offline — saved on this device, will retry' }[cloudState];
 }
 
 function openProfile(welcome) {
@@ -361,7 +610,7 @@ function openProfile(welcome) {
   const doSave = () => {
     save.name = input.value.trim().slice(0, 20) || 'Chef';
     save.avatar = chosen;
-    persist(); renderHud(); hideModal();
+    persist(); renderHud(); hideModal(); queueSync();
   };
   $('pSave').onclick = doSave;
   input.onkeydown = e => { if (e.key === 'Enter') doSave(); };
@@ -372,7 +621,13 @@ function openProfile(welcome) {
       showModal(`<h2>Reset progress?</h2><p>This clears all ${unlocked.size} unlocked countries and your profile look. It can't be undone.</p>
         <div class="btn-row"><button class="btn ghost" id="rNo">Keep my progress</button><button class="btn" style="background:#a8322e" id="rYes">Reset</button></div>`);
       $('rNo').onclick = () => openProfile(false);
-      $('rYes').onclick = () => { unlocked.clear(); save.avatar = null; save.last = null; persist(); renderHud(); dirty = true; hideModal(); };
+      $('rYes').onclick = () => {
+        // start a fresh online entry too, so the old progress can't sync back in
+        cloudDelete(save);
+        unlocked.clear();
+        Object.assign(save, { dates: {}, avatar: null, last: null, joined: nowIso(), cloudId: newUuid(), secret: randHex(16) });
+        persist(); renderHud(); dirty = true; hideModal(); queueSync();
+      };
     };
   }
 }
@@ -381,8 +636,12 @@ function openProfile(welcome) {
 // UI HELPERS
 // =====================================================================
 let modalOpen = false;
-function showModal(html) { $('modalBox').innerHTML = html; $('modal').classList.remove('hidden'); modalOpen = true; }
-function hideModal() { $('modal').classList.add('hidden'); modalOpen = false; }
+function showModal(html) {
+  passportKeys = null;
+  $('modalBox').className = ''; $('modalBox').innerHTML = html;
+  $('modal').classList.remove('hidden'); modalOpen = true;
+}
+function hideModal() { $('modal').classList.add('hidden'); modalOpen = false; passportKeys = null; }
 
 let toastTimer;
 function toast(msg, kind = '') {
@@ -928,7 +1187,8 @@ function finishDish() {
   K.finished = true;
   const c = K.c;
   const wasNew = !unlocked.has(c.id);
-  unlocked.add(c.id); save.last = c.id; persist(); renderHud();
+  if (wasNew) save.dates[c.id] = nowIso();
+  unlocked.add(c.id); save.last = c.id; persist(); renderHud(); queueSync(0);
   $('kPlate').classList.add('complete');
   dishPhoto(c).then(ph => { if (ph && K && K.c === c) $('kFood').innerHTML = `<img src="${esc(ph.src)}" alt="">`; });
   confetti();
@@ -945,6 +1205,7 @@ function finishDish() {
         <p class="muted">${secs}s · ${K.mistakes} mistake${K.mistakes === 1 ? '' : 's'} · ${unlocked.size} / ${TOTAL} places</p>
       </div>
       <div class="btn-row" style="justify-content:center">
+        ${wasNew ? '<button class="btn ghost" id="seeStamp">🛂 See my new stamp</button>' : ''}
         <button class="btn ghost" id="useFlag">${flagImg(c.iso, 40).replace('<img', '<img style="height:14px;vertical-align:-2px;margin-right:6px"')}Use this flag on my profile</button>
         <button class="btn gold" id="backGlobe">🌍 Back to the globe</button>
       </div>`);
@@ -953,6 +1214,11 @@ function finishDish() {
       $('useFlag').textContent = '✓ Profile updated'; $('useFlag').disabled = true;
     };
     $('backGlobe').onclick = () => { hideModal(); returnToGlobe(); };
+    if (wasNew) $('seeStamp').onclick = () => {
+      openPassport(true);
+      $('ppClose').textContent = '🌍 Back to the globe';
+      $('ppClose').onclick = () => { hideModal(); returnToGlobe(); };
+    };
   }, 900);
 }
 
@@ -980,19 +1246,40 @@ function returnToGlobe() {
 }
 
 // ---- glove cursor ----
+// Mouse: the glove's fingertip sits on the pointer. Touch/pen: the glove floats just above the
+// finger so it isn't hidden under it, follows the finger while dragging, and letting go after a
+// drag drops whatever the glove holds onto the station under the finger.
 const glove = $('glove');
 let isTouch = false;
-function moveGlove(x, y) { glove.style.transform = `translate(${x - 20}px,${y - 8}px)`; }
-window.addEventListener('pointermove', e => {
-  if (e.pointerType === 'touch') return;
-  if (isTouch) { isTouch = false; $('kitchen').classList.remove('touch'); }
-  moveGlove(e.clientX, e.clientY);
-});
+let touchDrag = null;
+function setTouch(on) {
+  if (isTouch === on) return;
+  isTouch = on; $('kitchen').classList.toggle('touch', on);
+}
+function moveGlove(x, y) {
+  glove.style.transform = isTouch ? `translate(${x - 34}px,${y - 78}px)` : `translate(${x - 20}px,${y - 8}px)`;
+}
 window.addEventListener('pointerdown', e => {
-  if (e.pointerType === 'touch') { isTouch = true; $('kitchen').classList.add('touch'); }
+  setTouch(e.pointerType !== 'mouse');
   moveGlove(e.clientX, e.clientY);
+  touchDrag = isTouch && screen === 'kitchen' ? { x: e.clientX, y: e.clientY, moved: false } : null;
 });
+window.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse') setTouch(false);
+  else if (!e.buttons && !touchDrag) return;   // hovering pen: ignore
+  moveGlove(e.clientX, e.clientY);
+  if (touchDrag && Math.hypot(e.clientX - touchDrag.x, e.clientY - touchDrag.y) > 12) touchDrag.moved = true;
+});
+window.addEventListener('pointerup', e => {
+  const d = touchDrag; touchDrag = null;
+  if (!d || !d.moved || screen !== 'kitchen' || modalOpen) return;
+  // a drag doesn't produce a click, so deliver one to whatever is under the finger
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  if (el && stage.contains(el)) el.click();
+});
+window.addEventListener('pointercancel', () => { touchDrag = null; });
 window.addEventListener('keydown', e => {
+  if (passportKeys) passportKeys(e);
   if (e.key !== 'Escape') return;
   if (modalOpen) return;
   if (screen === 'kitchen' && K) {
@@ -1007,9 +1294,12 @@ window.addEventListener('keydown', e => {
 window.addEventListener('resize', () => { if (screen === 'globe') resize(); else fitStage(); });
 $('profileBtn').onclick = () => openProfile(false);
 $('switchBtn').onclick = openProfiles;
+$('passportBtn').onclick = () => openPassport();
+$('leaderBtn').onclick = openLeaderboard;
 resize();
 renderHud();
 requestAnimationFrame(loop);
 loadWorld();
+queueSync(0);
 if (!save.name) openProfile(true);
 })();
