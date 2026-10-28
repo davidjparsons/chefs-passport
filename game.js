@@ -160,8 +160,8 @@ const $ = id => document.getElementById(id);
 // SAVE / PROFILE
 // =====================================================================
 // All profiles live in one record: { current: id, profiles: { id: profile } }, where a profile is
-//   { name, unlocked: [ids], dates: {id: ISO date | null}, avatar, last, joined, cloudId, secret }.
-// dates[id] is null for places unlocked before dates were recorded. cloudId + secret identify the
+//   { name, unlocked: [ids], dates: {id: ISO date}, avatar, last, joined, cloudId, secret }.
+// Places unlocked before dates were recorded are dated the day the save was upgraded. cloudId + secret identify the
 // chef online (no password: the backup code carries them). `save` always points at the active profile.
 const STORE_KEY = 'chefsPassport.v2';
 const OLD_STORE_KEY = 'chefsPassport.v1';
@@ -179,7 +179,9 @@ function normalizeProfile(p) {
   p = Object.assign(blankProfile(), p);
   p.unlocked = [...new Set(p.unlocked)].filter(id => byId[id]);
   p.dates = Object.assign({}, p.dates);
-  for (const id of p.unlocked) if (!(id in p.dates)) p.dates[id] = null;
+  // places unlocked before dates were recorded get stamped with today's date
+  const today = nowIso();
+  for (const id of p.unlocked) if (!p.dates[id]) p.dates[id] = today;
   return p;
 }
 const newProfileId = () => 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -194,7 +196,7 @@ function mergeUnlocks(p, map) {
   for (const [id, dt] of Object.entries(map || {})) {
     if (!byId[id]) continue;
     if (!p.unlocked.includes(id)) {
-      p.unlocked.push(id); p.dates[id] = dt || null; changed = true;
+      p.unlocked.push(id); p.dates[id] = dt || nowIso(); changed = true;
       if (p === save) unlocked.add(id);
     } else if (dt && (!p.dates[id] || Date.parse(dt) < Date.parse(p.dates[id]))) { p.dates[id] = dt; changed = true; }
   }
@@ -378,7 +380,7 @@ function openPassport(atLastPage) {
     return `<div class="stamp ${shape}" style="--ink:${ink};transform:rotate(${rot}deg);animation-delay:${i * 70}ms">
       <div class="st-top">★ ${esc(s.c.name.toUpperCase())} ★</div>
       <div class="st-flag">${flagImg(s.c.iso, 80)}</div>
-      <div class="st-date">${s.d ? fmtDate(s.d) : 'Before ' + fmtDate(p.joined)}</div>
+      <div class="st-date">${fmtDate(s.d || p.joined)}</div>
       <div class="st-dish">🍽️ ${esc(s.c.dish)}</div></div>`;
   };
   const mrzName = (p.name || 'CHEF').toUpperCase().replace(/[^A-Z0-9]/g, '<');
