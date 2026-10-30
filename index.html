@@ -155,6 +155,45 @@ button{font-family:inherit;cursor:pointer}
   border:1px solid var(--panel-line);padding:12px 26px;border-radius:30px;font-size:20px;white-space:nowrap}
 @keyframes pop{from{transform:scale(.9);opacity:0}}
 
+.trip-toggle{display:flex;align-items:center;gap:8px;justify-content:center;font-size:13px;opacity:.8;margin-top:10px;cursor:pointer}
+.trip-toggle input{width:16px;height:16px;accent-color:#ffb320}
+
+/* ---------- 3D TRIP ---------- */
+#journey{background:#000;touch-action:none}
+#jStage{position:absolute;inset:0}
+#jStage canvas{display:block;cursor:grab}
+#jStage canvas:active{cursor:grabbing}
+.j-top{position:absolute;top:14px;left:14px;max-width:calc(100% - 330px);background:var(--panel);border:1px solid var(--panel-line);
+  border-radius:16px;padding:10px 16px;pointer-events:none}
+#jTitle{font-size:19px;font-weight:600}
+#jSub{font-size:13px;opacity:.8}
+.j-btns{position:absolute;top:14px;right:14px;display:flex;gap:8px}
+.j-btns button{font-size:14px;font-weight:600;padding:9px 14px;border-radius:20px;border:1px solid var(--panel-line);background:var(--panel);color:#fff}
+.j-btns button:hover{border-color:#fff8}
+.j-btns button.on{background:#ffb320;color:#3a2600}
+#jPrompt{position:absolute;left:50%;bottom:100px;transform:translateX(-50%);max-width:min(640px,calc(100% - 32px));background:#fff8ecf2;color:var(--ink);
+  border-radius:18px;padding:12px 20px;font-size:17px;text-align:center;box-shadow:0 8px 24px #0006;pointer-events:none;animation:pop .25s}
+#jChoices{position:absolute;left:50%;bottom:90px;transform:translateX(-50%);width:min(560px,calc(100% - 32px));background:var(--cream);color:var(--ink);
+  border-radius:20px;padding:16px 18px;box-shadow:0 12px 30px #0008;animation:pop .25s}
+#jChoices .jq{font-size:17px;font-weight:500;margin-bottom:12px;text-align:center}
+#jChoices .jopts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+#jChoices button{flex:1;min-width:110px;background:#fff;border:2px solid #0001;border-radius:14px;padding:10px;font-size:15px;font-weight:500;color:var(--ink)}
+#jChoices button span{display:block;font-size:34px;margin-bottom:4px}
+#jChoices button:hover{border-color:#ffb320;transform:translateY(-2px)}
+#jAction{position:absolute;left:50%;bottom:28px;transform:translateX(-50%)}
+.j-go{font-size:20px;font-weight:600;padding:13px 28px;border-radius:40px;border:none;color:#3a2600;white-space:nowrap;
+  background:linear-gradient(#ffd96a,#ffb320);box-shadow:0 6px 0 #b86f00,0 10px 24px #0008;animation:pop .3s}
+.j-go.small{font-size:16px;padding:10px 20px}
+.j-go:active{transform:translateY(4px);box-shadow:0 2px 0 #b86f00}
+#jFade{position:absolute;inset:0;background:#fff8ec;opacity:0;pointer-events:none;transition:opacity .5s}
+#jFade.on{opacity:1}
+@media (max-width:700px){
+  .j-top{max-width:calc(100% - 28px);top:62px}
+  #jTitle{font-size:16px}
+  .j-btns button{font-size:12px;padding:7px 10px}
+  #jPrompt{font-size:15px;bottom:92px}
+}
+
 /* ---------- FADE ---------- */
 #fade{position:fixed;inset:0;background:#fff8ec;color:var(--ink);display:grid;place-items:center;opacity:0;pointer-events:none;
   transition:opacity .5s;z-index:50;text-align:center}
@@ -518,6 +557,17 @@ button{font-family:inherit;cursor:pointer}
   <div class="tag" id="gloveTag"></div>
 </div>
 
+<!-- 3D TRIP (journey.js) -->
+<div id="journey" class="screen">
+  <div id="jStage"></div>
+  <div class="j-top"><div id="jTitle"></div><div id="jSub"></div></div>
+  <div class="j-btns"><button id="jFast">⏩ Speed up</button><button id="jSkip">⏭ Skip to the kitchen</button></div>
+  <div id="jPrompt" class="hidden"></div>
+  <div id="jChoices" class="hidden"></div>
+  <div id="jAction"></div>
+  <div id="jFade" class="on"></div>
+</div>
+
 <div id="fade"><div><div class="big" id="fadeBig">✈️</div><div class="t" id="fadeT"></div><div class="s" id="fadeS"></div></div></div>
 <div id="toast"></div>
 <div id="modal" class="hidden"><div id="modalBox"></div></div>
@@ -526,6 +576,7 @@ button{font-family:inherit;cursor:pointer}
 <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
 <script src="config.js"></script>
 <script src="data.js"></script>
+<script src="journey.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

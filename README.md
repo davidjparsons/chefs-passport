@@ -8,6 +8,11 @@ A lightweight browser cooking game. Spin the globe, hit **🎲 Random Country**,
 
 Open `index.html` in any modern browser — no install, no build step, no graphics card needed (it's all 2D canvas and HTML/CSS).
 
+## The trip
+
+Clicking **Fly** starts a short 3D trip (in `journey.js`, using a lightweight three.js build that only loads when you take off):
+wait in the boarding line, scan your passport at the gate, walk down the jet bridge, sit at your window seat while the cabin crew bring food, then step off into a landscape made for that country, with its flag, flowers, animals and a landmark such as the Eiffel Tower or the pyramids. **⏩ Speed up** and **⏭ Skip** are always on screen, and the **🧳 Airport & flight scenes** switch on the country card turns it off on that device. Devices without 3D support fall back to the globe flight.
+
 ## How to cook
 
 - Grab ingredients from the **fridge** and **cupboards** with your floating chef's glove — watch out for ingredients that aren't in the recipe.

@@ -674,6 +674,7 @@ function showScreen(name) {
   screen = name;
   $('globeScreen').classList.toggle('active', name === 'globe');
   $('kitchen').classList.toggle('active', name === 'kitchen');
+  $('journey').classList.toggle('active', name === 'journey');
   $('glove').classList.toggle('on', name === 'kitchen');
   if (name === 'kitchen') fitStage();
   if (name === 'globe') { resize(); }
@@ -882,10 +883,12 @@ function selectCountry(c, opts = {}) {
     <div class="row"><b>Dish</b><span>🍽️ ${esc(c.dish)}</span></div>
     <div class="row"><b>Nature</b><span>${firstMatch(FLORA_RULES, c.flora, '🌸')} ${esc(c.flora)} · ${firstMatch(FAUNA_RULES, c.fauna, '🐾')} ${esc(c.fauna)}</span></div>
     <div style="height:10px"></div>
-    <button class="fly-btn" id="flyBtn">✈️ Fly to ${esc(c.capital)} &amp; cook</button>`;
+    <button class="fly-btn" id="flyBtn">✈️ Fly to ${esc(c.capital)} &amp; cook</button>
+    ${journeyAvailable() ? `<label class="trip-toggle"><input type="checkbox" id="tripToggle" ${journeyOn() ? 'checked' : ''}> 🧳 Airport &amp; flight scenes</label>` : ''}`;
   card.classList.remove('hidden');
   $('infoClose').onclick = () => selectCountry(null);
   $('flyBtn').onclick = () => startFlight(c);
+  if ($('tripToggle')) $('tripToggle').onchange = e => setJourneyOn(e.target.checked);
   if (opts.rotate) rotateTo([c.lon, c.lat], 1100);
 }
 
@@ -913,7 +916,81 @@ $('randomBtn').onclick = () => {
   if (!pool.length) toast('You\'ve cooked every country! 🏆 Replaying a random one.', 'good');
 };
 
+// ---- the 3D trip (journey.js): airport → passport scan → flight → arrival. Per-device on/off switch. ----
+const JOURNEY_KEY = 'chefsPassport.journey';
+const journeyAvailable = () => !!(window.Journey && Journey.supported());
+function journeyOn() {
+  try { return localStorage.getItem(JOURNEY_KEY) !== 'off'; } catch (e) { return true; }
+}
+function setJourneyOn(on) {
+  try { localStorage.setItem(JOURNEY_KEY, on ? 'on' : 'off'); } catch (e) { /* storage unavailable */ }
+  if (on) Journey.preload();
+}
+
+// the live route map on the seat-back screen
+function drawRouteMap(c2, w, h, from, to, t) {
+  const interp = d3.geoInterpolate(from, to), here = interp(t);
+  const pr = d3.geoOrthographic().rotate([-here[0], -here[1]]).scale(h * 0.62).translate([w / 2, h / 2]).clipAngle(90);
+  const p2 = d3.geoPath(pr, c2);
+  c2.fillStyle = '#163f73'; c2.beginPath(); p2({ type: 'Sphere' }); c2.fill();
+  const set = world.lo || world.hi;
+  if (set) {
+    c2.fillStyle = '#3f7a4f';
+    for (const f of set.features) { c2.beginPath(); p2(f); c2.fill(); }
+  }
+  c2.setLineDash([5, 5]); c2.strokeStyle = 'rgba(255,255,255,0.7)'; c2.lineWidth = 2;
+  c2.beginPath(); p2({ type: 'LineString', coordinates: [here, to] }); c2.stroke();
+  c2.setLineDash([]); c2.strokeStyle = '#ffd65a'; c2.lineWidth = 3;
+  if (t > 0.001) { c2.beginPath(); p2({ type: 'LineString', coordinates: [from, here] }); c2.stroke(); }
+  for (const [pt, col] of [[from, '#fff'], [to, '#ffd65a']]) {
+    const xy = d3.geoDistance(pt, here) < Math.PI / 2 && pr(pt);
+    if (xy) { c2.fillStyle = col; c2.beginPath(); c2.arc(xy[0], xy[1], 4, 0, 7); c2.fill(); }
+  }
+  c2.font = '22px "Segoe UI Emoji","Apple Color Emoji",sans-serif'; c2.textAlign = 'center'; c2.textBaseline = 'middle';
+  c2.fillText('✈️', w / 2, h / 2);
+  c2.textAlign = 'left'; c2.textBaseline = 'alphabetic';
+}
+
 function startFlight(c) {
+  if (!journeyAvailable() || !journeyOn()) return globeFlight(c);
+  selectCountry(null);
+  selected = c;
+  const from = save.last && byId[save.last] && save.last !== c.id ? byId[save.last] : null;
+  const fromPt = from ? [from.lon, from.lat] : [c.lon - 40, clamp(c.lat + 12, -70, 70)];
+  $('fadeBig').textContent = '🧳';
+  $('fadeT').textContent = 'Heading to the airport…';
+  $('fadeS').textContent = from ? `Departing ${from.capital} for ${c.capital}` : `Next stop: ${c.capital}`;
+  $('fade').classList.add('on');
+  $('randomBtn').disabled = true;
+  const minutes = Math.max(45, Math.round(d3.geoDistance(fromPt, [c.lon, c.lat]) * 6371 / 800 * 60 + 30));
+  let shown = false;
+  Journey.run({
+    to: c, from, small: dotCountries.includes(c),
+    chef: { name: save.name || 'Chef', avatar: save.avatar },
+    accent: [0xc0392b, 0x1f6fd1, 0x16a085, 0x8e44ad, 0xd35400][Math.floor(Math.random() * 5)],   // airline colour
+    flagUrl: flagUrl(c.iso, 320),
+    floraEmoji: firstMatch(FLORA_RULES, c.flora, '🌸'), floraName: c.flora,
+    faunaEmoji: firstMatch(FAUNA_RULES, c.fauna, '🐾'), faunaName: c.fauna,
+    otherCities: d3.shuffle(COUNTRIES.filter(o => o !== c)).slice(0, 5).map(o => o.capital),
+    flightMinutes: minutes,
+    drawMap: (c2, w, h, t) => drawRouteMap(c2, w, h, fromPt, [c.lon, c.lat], t),
+    onReady: () => { if (!shown) { shown = true; showScreen('journey'); $('fade').classList.remove('on'); } },
+  }).then(() => {
+    $('fadeBig').textContent = '🏛️'; $('fadeT').textContent = `Off to the parliament kitchen…`; $('fadeS').textContent = `Time to cook ${c.dish}`;
+    $('fade').classList.add('on');
+    $('randomBtn').disabled = false;
+    save.last = c.id; persist();
+    setTimeout(() => { enterKitchen(c); setTimeout(() => $('fade').classList.remove('on'), 400); }, 300);
+  }, err => {
+    console.warn('3D trip unavailable, using the globe flight:', err);
+    $('randomBtn').disabled = false;
+    $('fade').classList.remove('on');
+    showScreen('globe');
+    globeFlight(c);
+  });
+}
+
+function globeFlight(c) {
   selectCountry(null);
   selected = c;
   const dest = [c.lon, c.lat];
