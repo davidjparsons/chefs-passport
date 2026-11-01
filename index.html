@@ -194,6 +194,90 @@ button{font-family:inherit;cursor:pointer}
   #jPrompt{font-size:15px;bottom:92px}
 }
 
+/* ---------- PARTY MODE ---------- */
+#partyBtn{position:absolute;right:14px;bottom:132px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 12px 8px;
+  border-radius:18px;border:2px solid #ffffff40;background:linear-gradient(#8e5cf7,#5b2fd6);color:#fff;box-shadow:0 5px 0 #3a1c96,0 10px 20px #0007}
+#partyBtn span{font-size:30px;line-height:1}
+#partyBtn b{font-size:14px;letter-spacing:.5px}
+#partyBtn:hover{filter:brightness(1.1)}
+#partyBtn:active{transform:translateY(3px);box-shadow:0 2px 0 #3a1c96}
+#partyBtn.in{background:linear-gradient(#2fbf71,#1c8d4f);box-shadow:0 5px 0 #11613a,0 10px 20px #0007}
+.party-choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0 6px}
+.party-card{display:flex;flex-direction:column;align-items:center;gap:6px;background:#fff;border:2px solid #0001;border-radius:16px;padding:16px 12px;color:var(--ink);text-align:center}
+.party-card span{font-size:38px}
+.party-card b{font-size:17px}
+.party-card small{opacity:.6}
+button.party-card:hover{border-color:#ffb320;transform:translateY(-2px)}
+.party-card input{width:100%;font-family:Consolas,monospace;font-size:24px;letter-spacing:6px;text-align:center;text-transform:uppercase;
+  padding:6px;border-radius:10px;border:2px solid #0002;margin:0}
+.party-card input:focus{outline:none;border-color:#3fa2ff}
+.party-card .btn{width:100%}
+.party-code{display:flex;align-items:center;justify-content:center;gap:14px;background:#fff;border-radius:16px;padding:10px;margin:8px 0}
+.party-code small{opacity:.6}
+.party-code b{font-family:Consolas,monospace;font-size:36px;letter-spacing:8px;color:#5b2fd6}
+.party-settings{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;font-size:14px}
+.party-settings select{font-family:inherit;font-size:14px;padding:4px 8px;border-radius:8px;border:2px solid #0002;margin-left:4px}
+#partyHud{position:fixed;inset:0;z-index:35;pointer-events:none}
+#partyHud > *{pointer-events:auto}
+.ph-top{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center}
+.ph-top span{background:var(--panel);border:1px solid var(--panel-line);border-radius:20px;padding:8px 14px;font-weight:600;font-size:16px;white-space:nowrap}
+#phTimer.low{background:#a8322e;animation:bob .6s infinite}
+.ph-top button{background:var(--panel);border:1px solid var(--panel-line);border-radius:50%;width:38px;height:38px;font-size:18px;color:#fff}
+.ph-clue{position:absolute;top:70px;left:14px;width:190px;background:var(--panel);border:1px solid var(--panel-line);border-radius:16px;padding:10px;
+  display:flex;flex-direction:column;gap:6px}
+.ph-clue small{font-size:12px;opacity:.85}
+.ph-clue:empty{display:none}
+.ph-photo{height:120px;border-radius:10px;overflow:hidden;background:#0003;display:grid;place-items:center;font-size:40px}
+.ph-photo img{width:100%;height:100%;object-fit:cover}
+.ph-nature{font-size:34px;text-align:center}
+.ph-map{position:absolute;right:14px;bottom:14px;width:320px;height:250px;display:flex;flex-direction:column;gap:8px;transition:width .2s,height .2s}
+.ph-map:hover,.ph-map.big{width:min(720px,calc(100vw - 28px));height:min(470px,calc(100vh - 110px))}
+.ph-map canvas{flex:1;width:100%;min-height:0;border-radius:14px;border:3px solid #fff;box-shadow:0 8px 24px #0008;cursor:crosshair;touch-action:none;background:#7fb8e6}
+.ph-zoom{position:absolute;top:8px;left:8px;display:flex;flex-direction:column;gap:4px}
+.ph-zoom button{width:30px;height:30px;border-radius:8px;border:none;background:#fff;color:var(--ink);font-size:18px;font-weight:700;box-shadow:0 2px 4px #0004}
+.ph-map .j-go{font-size:16px;padding:11px 16px;animation:none}
+.ph-map .j-go:disabled{filter:grayscale(.6);opacity:.85;cursor:default}
+#partyHud.waiting .ph-map{width:260px;height:190px}
+.ph-wait{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);background:var(--cream);color:var(--ink);border-radius:18px;padding:12px 18px;
+  text-align:center;box-shadow:0 8px 24px #0006;max-width:calc(100vw - 320px)}
+.ph-dots{display:flex;gap:6px;justify-content:center;margin-top:8px}
+.ph-dots span{width:30px;height:30px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#ffe9c4;font-size:16px;opacity:.35;border:2px solid transparent}
+.ph-dots span.in{opacity:1;border-color:#2fbf71}
+.ph-dots img{width:100%;height:100%;object-fit:cover}
+#partyHud.results .ph-clue{display:none}
+.ph-results{position:absolute;left:50%;top:64px;transform:translateX(-50%);width:min(760px,calc(100vw - 24px));max-height:calc(100vh - 80px);overflow:auto;
+  background:var(--cream);color:var(--ink);border-radius:22px;padding:18px 20px;box-shadow:0 20px 50px #000a;animation:pop .3s}
+.pr-head{display:flex;gap:14px;align-items:center}
+.pr-head h2{margin:0;font-size:28px}
+.pr-flag{width:96px;height:64px;border-radius:8px;overflow:hidden;flex:none;box-shadow:0 2px 6px #0003}
+.pr-flag img{width:100%;height:100%;object-fit:cover}
+#prMap{width:100%;height:260px;border-radius:14px;margin:12px 0;display:block}
+.pr-list{display:flex;flex-direction:column;gap:6px}
+.pr-list .lb-main span{display:block;font-size:12px}
+.pr-pts{color:#1c8d4f;font-weight:700;min-width:64px;text-align:right}
+.pin-dot{display:inline-block;width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #0003}
+.podium{display:flex;justify-content:center;align-items:flex-end;gap:10px;margin:14px 0}
+.pod{display:flex;flex-direction:column;align-items:center;gap:4px;width:120px;text-align:center}
+.pod .avatar{width:54px;height:54px}
+.pod b{font-size:15px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pod span{font-size:13px;opacity:.7}
+.pod .step{width:100%;border-radius:10px 10px 0 0;display:grid;place-items:center;font-size:30px;color:#fff}
+.pod.p1 .step{height:110px;background:linear-gradient(#ffd96a,#e0a520)}
+.pod.p2 .step{height:80px;background:linear-gradient(#e3e8ec,#aab4bc)}
+.pod.p3 .step{height:60px;background:linear-gradient(#e6a56a,#b7743a)}
+#journey.mystery .j-top,#journey.mystery .j-btns,#journey.mystery #jPrompt,#journey.mystery #jAction{display:none}
+@media (max-width:700px){
+  #partyBtn{bottom:auto;top:140px}
+  .ph-map{width:calc(100vw - 28px);height:190px}
+  .ph-map:hover{width:calc(100vw - 28px);height:190px}
+  .ph-map.big{height:min(420px,calc(100vh - 140px))}
+  .ph-clue{top:62px;width:130px}
+  .ph-photo{height:80px}
+  .ph-top span{font-size:13px;padding:6px 10px}
+  .ph-wait{max-width:calc(100vw - 24px);bottom:220px}
+  .party-choices{grid-template-columns:1fr}
+}
+
 /* ---------- FADE ---------- */
 #fade{position:fixed;inset:0;background:#fff8ec;color:var(--ink);display:grid;place-items:center;opacity:0;pointer-events:none;
   transition:opacity .5s;z-index:50;text-align:center}
@@ -207,16 +291,28 @@ button{font-family:inherit;cursor:pointer}
 #stage{position:absolute;left:50%;top:50%;width:1200px;height:720px;transform-origin:center center;overflow:hidden;
   border-radius:8px;box-shadow:0 0 60px #000a;cursor:none}
 #kitchen.touch #stage{cursor:auto}
-.wall{position:absolute;inset:0;background:
-  linear-gradient(#0000 330px,#0000 330px),
-  #f4e6cc}
+/* each country's kitchen sets these (see kitchenTheme in game.js); these are the defaults */
+#stage{--k-wall:#f4e6cc;--k-ink:#5a3a22;--k-frame:#8a5a32;--k-cab1:#c9935a;--k-cab2:#b07b45;--k-cab3:#a06c3a;--k-cab4:#d8a56c;--k-handle:#5a3a22;
+  --k-splash:linear-gradient(#cfdfe3 2px,transparent 2px) 0 0/46px 30px,linear-gradient(90deg,#cfdfe3 2px,transparent 2px) 0 0/46px 30px,#e9f2f4;
+  --k-floor:repeating-conic-gradient(#d7c3a3 0 25%,#b89f7b 0 50%) 0 0/30px 30px;--k-sky:#9ad0f5;--k-ground:#6db24d}
+.kwin{position:absolute;left:576px;top:222px;width:168px;height:104px;border:8px solid var(--k-frame);border-radius:6px;overflow:hidden;
+  box-shadow:inset 0 0 0 2px #0002,0 4px 8px #0004;background:var(--k-sky)}
+.kw-view{position:absolute;inset:0;background:linear-gradient(var(--k-sky) 0 62%,var(--k-ground) 62%)}
+.kw-view span{position:absolute;line-height:1}
+.kwin::before,.kwin::after{content:"";position:absolute;background:var(--k-frame);z-index:2}
+.kwin::before{left:50%;top:0;bottom:0;width:5px;margin-left:-2px}
+.kwin::after{top:46%;left:0;right:0;height:5px}
+.kw-sill{display:none}
+.bunting{position:absolute;left:196px;right:0;top:0;height:30px;display:flex;justify-content:space-around;pointer-events:none}
+.bunting::before{content:"";position:absolute;left:0;right:0;top:3px;height:2px;background:#5a3a22aa}
+.bunting i{width:26px;height:24px;margin-top:4px;clip-path:polygon(0 0,100% 0,50% 100%);box-shadow:inset 0 -2px 0 #0002}
+.kdeco{position:absolute;font-size:42px;line-height:1;pointer-events:none;filter:drop-shadow(0 3px 3px #0004);white-space:nowrap}
+.wall{position:absolute;inset:0;background:var(--k-wall)}
 .backsplash{position:absolute;left:200px;right:0;top:330px;height:140px;
-  background-color:#e9f2f4;
-  background-image:linear-gradient(#cfdfe3 2px,transparent 2px),linear-gradient(90deg,#cfdfe3 2px,transparent 2px);
-  background-size:46px 30px}
+  background:var(--k-splash);box-shadow:inset 0 6px 8px -6px #0003}
 .floor{position:absolute;left:0;right:0;top:690px;bottom:0;
-  background:repeating-conic-gradient(#d7c3a3 0 25%,#b89f7b 0 50%) 0 0/30px 30px}
-.k-title{position:absolute;left:220px;top:8px;width:680px;text-align:center;color:#5a3a22;font-size:20px;font-weight:600}
+  background:var(--k-floor)}
+.k-title{position:absolute;left:220px;top:22px;width:680px;text-align:center;color:var(--k-ink);font-size:20px;font-weight:600}
 .k-title small{display:block;font-size:13px;font-weight:400;opacity:.75}
 .station{position:absolute}
 .station[data-act]:hover{filter:brightness(1.08) drop-shadow(0 0 8px #ffd96a)}
@@ -269,12 +365,12 @@ button{font-family:inherit;cursor:pointer}
 .magnet{position:absolute;font-size:24px}
 
 /* cupboards */
-.cup-upper{left:230px;top:226px;width:500px;height:104px;display:flex;gap:4px;padding:4px;background:#8a5a32;border-radius:4px;box-shadow:0 6px 10px #0004}
-.cupdoor{flex:1;background:linear-gradient(#c9935a,#b07b45);border-radius:3px;box-shadow:inset 0 0 0 6px #a06c3a,inset 0 0 0 8px #d8a56c;position:relative}
-.cupdoor::after{content:"";position:absolute;bottom:10px;left:50%;width:22px;height:6px;margin-left:-11px;border-radius:3px;background:#5a3a22}
-.cup-lower{left:200px;top:492px;width:540px;height:198px;display:flex;gap:4px;padding:6px;background:#8a5a32}
+.cup-upper{left:230px;top:226px;width:330px;height:104px;display:flex;gap:4px;padding:4px;background:var(--k-frame);border-radius:4px;box-shadow:0 6px 10px #0004}
+.cupdoor{flex:1;background:linear-gradient(var(--k-cab1),var(--k-cab2));border-radius:3px;box-shadow:inset 0 0 0 6px var(--k-cab3),inset 0 0 0 8px var(--k-cab4);position:relative}
+.cupdoor::after{content:"";position:absolute;bottom:10px;left:50%;width:22px;height:6px;margin-left:-11px;border-radius:3px;background:var(--k-handle)}
+.cup-lower{left:200px;top:492px;width:540px;height:198px;display:flex;gap:4px;padding:6px;background:var(--k-frame)}
 .cup-lower .cupdoor::after{top:14px;bottom:auto}
-.cup-lower2{left:960px;top:492px;width:240px;height:198px;display:flex;gap:4px;padding:6px;background:#8a5a32}
+.cup-lower2{left:960px;top:492px;width:240px;height:198px;display:flex;gap:4px;padding:6px;background:var(--k-frame)}
 .counter{position:absolute;left:196px;right:0;top:468px;height:26px;background:linear-gradient(#f0eee9,#c9c4bb);box-shadow:0 4px 6px #0004;border-radius:3px}
 .hood{position:absolute;left:770px;top:226px;width:170px;height:104px}
 .hood::before{content:"";position:absolute;inset:0;background:linear-gradient(#d0d6da,#a8b0b5);clip-path:polygon(30% 0,70% 0,100% 85%,100% 100%,0 100%,0 85%)}
@@ -456,6 +552,7 @@ button{font-family:inherit;cursor:pointer}
     <div class="cloud" id="hudCloud"></div>
   </div>
   <div id="legend"><span><i class="sw" style="background:var(--red)"></i>To cook</span><span><i class="sw" style="background:var(--green)"></i>Unlocked</span></div>
+  <button id="partyBtn" title="Play with friends"><span>🧑‍🤝‍🧑</span><b>Party</b></button>
   <div id="zoomBtns"><button class="round" id="zIn" aria-label="Zoom in">+</button><button class="round" id="zOut" aria-label="Zoom out">−</button></div>
   <button id="randomBtn" class="big-btn">🎲 Random Country</button>
   <div id="infoCard" class="hidden"></div>
@@ -484,10 +581,15 @@ button{font-family:inherit;cursor:pointer}
     </div>
 
     <div class="station cup-upper" data-act="cupboard">
-      <div class="cupdoor"></div><div class="cupdoor"></div><div class="cupdoor"></div><div class="cupdoor"></div>
+      <div class="cupdoor"></div><div class="cupdoor"></div><div class="cupdoor"></div>
       <div class="label">Cupboards</div>
     </div>
     <div class="hood"></div>
+    <div class="kwin" id="kWindow"><div class="kw-view" id="kView"></div><div class="kw-sill"></div></div>
+    <div class="bunting" id="kBunting"></div>
+    <div class="kdeco" id="kDecoTop" style="left:142px;top:86px"></div>
+    <div class="kdeco" id="kDecoCounter" style="left:1100px;top:408px"></div>
+    <div class="kdeco" id="kDecoSill" style="left:600px;top:302px;font-size:34px"></div>
 
     <div class="station fridge" data-act="fridge">
       <div class="door d1"><div class="handle"></div></div>
@@ -568,6 +670,20 @@ button{font-family:inherit;cursor:pointer}
   <div id="jFade" class="on"></div>
 </div>
 
+<!-- PARTY MODE (party.js) -->
+<div id="partyHud" class="hidden">
+  <div class="ph-top"><span id="phRound"></span><span id="phTimer"></span><span id="phScore"></span>
+    <button id="phLeave" title="Leave party">🚪</button></div>
+  <div class="ph-clue" id="phClue"></div>
+  <div class="ph-map" id="phMap">
+    <canvas id="phCanvas"></canvas>
+    <div class="ph-zoom"><button id="phZin" aria-label="Zoom in">+</button><button id="phZout" aria-label="Zoom out">−</button><button id="phBig" aria-label="Bigger map">⤢</button></div>
+    <button class="j-go" id="phGuess" disabled>📍 Tap the map to place your pin</button>
+  </div>
+  <div class="ph-wait hidden" id="phWait"></div>
+  <div class="ph-results hidden" id="phResults"></div>
+</div>
+
 <div id="fade"><div><div class="big" id="fadeBig">✈️</div><div class="t" id="fadeT"></div><div class="s" id="fadeS"></div></div></div>
 <div id="toast"></div>
 <div id="modal" class="hidden"><div id="modalBox"></div></div>
@@ -578,5 +694,6 @@ button{font-family:inherit;cursor:pointer}
 <script src="data.js"></script>
 <script src="journey.js"></script>
 <script src="game.js"></script>
+<script src="party.js"></script>
 </body>
 </html>

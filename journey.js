@@ -830,12 +830,19 @@ async function arrivalStage(o) {
     box(0.05, 0.9, 0.05, 0xb0b6bc, sx, 0.45, 3.1, stairs);
   }
 
-  // welcome arch with the flag + flag poles + red carpet
-  const flagImg = await loadImage(o.flagUrl);
+  // welcome arch with the flag + flag poles + red carpet (party mode hides the name and flags)
+  const flagImg = o.mystery ? null : await loadImage(o.flagUrl);
   if (!R || R.aborted) throw SKIP;
   const sign = canvasTex(640, 240, (ctx, w, h) => {
     ctx.fillStyle = '#fff8ec'; ctx.fillRect(0, 0, w, h);
     ctx.strokeStyle = '#8a5a32'; ctx.lineWidth = 12; ctx.strokeRect(6, 6, w - 12, h - 12);
+    if (o.mystery) {
+      ctx.fillStyle = '#2b2420'; ctx.textAlign = 'center';
+      ctx.font = 'bold 120px Fredoka, sans-serif'; ctx.fillText('?', 130, 165);
+      ctx.textAlign = 'left'; ctx.font = '600 38px Fredoka, sans-serif'; ctx.fillText('Where in the', 250, 108);
+      ctx.fillText('world are you?', 250, 158);
+      return;
+    }
     if (flagImg) ctx.drawImage(flagImg, 26, 46, 210, 140);
     ctx.fillStyle = '#2b2420'; ctx.textAlign = 'left';
     ctx.font = '600 34px Fredoka, sans-serif'; ctx.fillText('Welcome to', 260, 86);
@@ -849,7 +856,7 @@ async function arrivalStage(o) {
   box(1.4, 0.02, 24, 0xb03030, 4, 0.05, 6);
   const flagTex = flagImg ? (() => { const t = new THREE.Texture(flagImg); t.needsUpdate = true; t.encoding = THREE.sRGBEncoding; R.textures.push(t); return t; })() : null;
   const waving = [];
-  for (const [x, z] of [[-1.5, 2], [9.5, 2], [-1.5, 10], [9.5, 10]]) {
+  for (const [x, z] of o.mystery ? [] : [[-1.5, 2], [9.5, 2], [-1.5, 10], [9.5, 10]]) {
     cyl(0.05, 0.06, 5, 0xdfe4e8, x, 2.5, z);
     if (flagTex) {
       const fl = new THREE.Mesh(geo('flagp', () => new THREE.PlaneGeometry(1.5, 1)), new THREE.MeshLambertMaterial({ map: flagTex, side: THREE.DoubleSide }));
@@ -907,7 +914,15 @@ async function arrivalStage(o) {
   setView(4, 4.6, -5.7, Math.PI, -0.08);   // standing in the open door at the top of the stairs
   setTitle(`🛬 Welcome to ${esc(c.name)}!`, `${esc(c.capital)} · ${esc(o.floraName)} · ${esc(o.faunaName)}`);
   setPrompt('');
+  o.onReady && o.onReady();
   await fade(false);
+  if (o.mystery) {   // party round: walk down, then look around freely until the round ends
+    await tween(2.2, k => { R.camera.position.z = -5.7 + k * 3.9; R.camera.position.y = 4.6 - k * 3.0; }, lin);
+    await walkCam(4, 6, 2.4);
+    await lookAt(-8, 3, 24, 1.6);
+    await lookAt(4, 5, 60, 1.6);
+    await cancellable(() => {});
+  }
   await sleep(1.2);
   setPrompt(`🌍 You've landed in <b>${esc(c.name)}</b>! Drag to look around.`);
   await tween(2.6, k => { R.camera.position.z = -5.7 + k * 3.9; R.camera.position.y = 4.6 - k * 3.0 + Math.abs(Math.sin(k * 28)) * 0.03; }, lin);
@@ -1035,14 +1050,15 @@ async function run(o) {
   await loadThree();
   $('jFade').classList.add('on');
   $('journey').classList.add('active');
+  $('journey').classList.toggle('mystery', !!o.mystery);
   o.flightNo = o.flightNo || 'CP ' + (100 + Math.floor(Math.random() * 800));
   start(o);
   try {
     const stages = { airport: airportStage, cabin: cabinStage, arrival: arrivalStage };
     for (const name of o.stages || Object.keys(stages)) await stages[name](o);   // o.stages: e.g. ['arrival'] for testing
   } catch (e) {
-    if (e !== SKIP) console.warn('Journey stopped:', e);
-    if (o.onReady) o.onReady();
+    // a real error before the first scene appeared: let the game show the screen so it can carry on
+    if (e !== SKIP) { console.warn('Journey stopped:', e); if (o.onReady) o.onReady(); }
   }
   $('jFade').classList.add('on');
   await new Promise(r => setTimeout(r, 450));
@@ -1050,5 +1066,12 @@ async function run(o) {
   setPrompt(''); hideChoices(); $('jAction').innerHTML = '';
 }
 
-window.Journey = { supported, run, preload: () => loadThree().catch(() => {}) };
+// landscape facts for a place (used by the kitchen window and party mode) — works without three.js
+const hex = n => '#' + n.toString(16).padStart(6, '0');
+function info(c, small) {
+  const b = biomeFor(c, small);
+  return { biome: b, sky: hex(BIOMES[b].sky), ground: hex(BIOMES[b].low), landmarks: landmarkFor(c.id) };
+}
+
+window.Journey = { supported, run, info, cancel: abort, preload: () => loadThree().catch(() => {}) };
 })();

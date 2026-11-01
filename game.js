@@ -951,6 +951,19 @@ function drawRouteMap(c2, w, h, from, to, t) {
   c2.textAlign = 'left'; c2.textBaseline = 'alphabetic';
 }
 
+// everything journey.js needs to know about a place (also used by party mode)
+function journeyArgs(c, extra) {
+  return Object.assign({
+    to: c, from: null, small: dotCountries.includes(c),
+    chef: { name: save.name || 'Chef', avatar: save.avatar },
+    accent: [0xc0392b, 0x1f6fd1, 0x16a085, 0x8e44ad, 0xd35400][Math.floor(Math.random() * 5)],   // airline colour
+    flagUrl: flagUrl(c.iso, 320),
+    floraEmoji: firstMatch(FLORA_RULES, c.flora, '🌸'), floraName: c.flora,
+    faunaEmoji: firstMatch(FAUNA_RULES, c.fauna, '🐾'), faunaName: c.fauna,
+    otherCities: [], flightMinutes: 60, drawMap: () => {},
+  }, extra);
+}
+
 function startFlight(c) {
   if (!journeyAvailable() || !journeyOn()) return globeFlight(c);
   selectCountry(null);
@@ -964,18 +977,13 @@ function startFlight(c) {
   $('randomBtn').disabled = true;
   const minutes = Math.max(45, Math.round(d3.geoDistance(fromPt, [c.lon, c.lat]) * 6371 / 800 * 60 + 30));
   let shown = false;
-  Journey.run({
-    to: c, from, small: dotCountries.includes(c),
-    chef: { name: save.name || 'Chef', avatar: save.avatar },
-    accent: [0xc0392b, 0x1f6fd1, 0x16a085, 0x8e44ad, 0xd35400][Math.floor(Math.random() * 5)],   // airline colour
-    flagUrl: flagUrl(c.iso, 320),
-    floraEmoji: firstMatch(FLORA_RULES, c.flora, '🌸'), floraName: c.flora,
-    faunaEmoji: firstMatch(FAUNA_RULES, c.fauna, '🐾'), faunaName: c.fauna,
+  Journey.run(journeyArgs(c, {
+    from,
     otherCities: d3.shuffle(COUNTRIES.filter(o => o !== c)).slice(0, 5).map(o => o.capital),
     flightMinutes: minutes,
     drawMap: (c2, w, h, t) => drawRouteMap(c2, w, h, fromPt, [c.lon, c.lat], t),
     onReady: () => { if (!shown) { shown = true; showScreen('journey'); $('fade').classList.remove('on'); } },
-  }).then(() => {
+  })).then(() => {
     $('fadeBig').textContent = '🏛️'; $('fadeT').textContent = `Off to the parliament kitchen…`; $('fadeS').textContent = `Time to cook ${c.dish}`;
     $('fade').classList.add('on');
     $('randomBtn').disabled = false;
@@ -1083,6 +1091,95 @@ function fitStage() {
   stage.style.transform = `translate(-50%,-50%) scale(${s})`;
 }
 
+// ---- every country's kitchen looks different: regional style + the country's flag colours + its view ----
+const REGIONS = {
+  eastasia: 'cn jp kr kp tw hk mo mn',
+  seasia: 'vn th la kh mm my sg id ph bn tl',
+  southasia: 'in pk bd np bt lk mv af',
+  mideast: 'sa ae qa kw bh om ye iq ir sy lb jo il ps tr eg ly tn dz ma mr az am ge kz uz tm tj kg',
+  nordic: 'no se fi dk is fo gl',
+  med: 'es pt it gr mt cy hr ad sm va mc gi al me si ba xk mk',
+  latin: 'mx gt bz sv hn ni cr pa cu do ht jm bs bb tt lc vc gd ag kn dm pr co ve ec pe bo br py uy ar cl gy sr gf aw cw ky vg vi ai ms tc mq gp bm',
+  pacific: 'fj pg sb vu ws to tv ki nr mh fm pw ck nc pf as gu',
+  africa: 'ng gh sn ml bf ne td sd ss et er dj so ke ug rw bi tz mz mw zm zw bw na za ls sz mg km mu sc cv gm gn gw sl lr ci tg bj cm cf gq ga cg cd ao st re',
+};
+const regionOf = c => Object.keys(REGIONS).find(r => REGIONS[r].split(' ').includes(c.iso)) || 'europe';
+const KITCHEN_THEMES = {
+  europe:    { wall: '#f4e6cc', ink: '#5a3a22', frame: '#8a5a32', cab: ['#c9935a', '#b07b45', '#a06c3a', '#d8a56c'], handle: '#5a3a22', deco: ['🪴', '🧀', '🌿'], colors: ['#c0392b', '#f4f4f4', '#1f4f91'] },
+  med:       { wall: '#fff6e8', ink: '#1d4f91', frame: '#6b7f3a', cab: ['#9fb36a', '#86994f', '#76893f', '#b8c98a'], handle: '#3b4a1e', deco: ['🍋', '🫒', '🌿'], colors: ['#1d4f91', '#ffffff', '#f2b134'],
+    splash: 'conic-gradient(from 45deg,#1d4f91 0 25%,#fff 0 50%,#1d4f91 0 75%,#fff 0) 0 0/26px 26px', floor: 'repeating-conic-gradient(#d9a066 0 25%,#c4844a 0 50%) 0 0/34px 34px' },
+  latin:     { wall: '#ffd9b3', ink: '#8a2c0d', frame: '#1f7a7a', cab: ['#3cb4b4', '#2a9a9a', '#1f8585', '#7fd6d6'], handle: '#0e4a4a', deco: ['🌶️', '🪅', '🌵'], colors: ['#e74c3c', '#f1c40f', '#2ecc71', '#3498db', '#e84393'],
+    splash: 'radial-gradient(circle,#f2b134 0 16%,#1d4f91 17% 30%,#fff 31% 46%,#c0392b 47% 52%,#fff 53%) 0 0/34px 34px', floor: 'repeating-conic-gradient(#c96b3c 0 25%,#b0552a 0 50%) 0 0/32px 32px' },
+  mideast:   { wall: '#f2e3c6', ink: '#5a3a22', frame: '#7a4a2a', cab: ['#b97a4a', '#a0643a', '#8a552f', '#d9a06a'], handle: '#3a2010', deco: ['🏺', '🫖', '🪔'], colors: ['#1f7a6d', '#c0392b', '#e0b84a'],
+    splash: 'conic-gradient(#1f7a6d 0 12.5%,#f2e3c6 0 25%,#c0392b 0 37.5%,#f2e3c6 0 50%,#1f4f7a 0 62.5%,#f2e3c6 0 75%,#e0b84a 0 87.5%,#f2e3c6 0) 0 0/28px 28px', floor: 'repeating-conic-gradient(#e6d3ac 0 25%,#cdb68a 0 50%) 0 0/36px 36px' },
+  eastasia:  { wall: '#f3e9d6', ink: '#7a1f1f', frame: '#4a2c1a', cab: ['#6b3f24', '#5a331c', '#4a2914', '#8a5a3a'], handle: '#c9a24a', deco: ['🏮', '🎋', '🍵'], colors: ['#c0392b', '#f1c40f'],
+    splash: 'linear-gradient(#7a5a3a 3px,transparent 3px) 0 0/44px 52px,linear-gradient(90deg,#7a5a3a 3px,transparent 3px) 0 0/44px 52px,#fbf7ee', floor: 'repeating-linear-gradient(90deg,#b8b06a 0 40px,#a59d58 40px 42px)' },
+  seasia:    { wall: '#e8f1de', ink: '#3a5a2a', frame: '#8a5a2a', cab: ['#b07a42', '#9a6834', '#86582a', '#cf9a5e'], handle: '#3a2410', deco: ['🪴', '🪷', '🥥'], colors: ['#c0392b', '#f1c40f', '#27ae60'],
+    splash: 'repeating-linear-gradient(90deg,#d6c48a 0 16px,#bfa96a 16px 18px)', floor: 'repeating-linear-gradient(90deg,#9a6a3a 0 28px,#86582e 28px 30px)' },
+  southasia: { wall: '#ffe3b8', ink: '#8a2c0d', frame: '#8b4513', cab: ['#c0392b', '#a93226', '#922b21', '#e0705a'], handle: '#e0b84a', deco: ['🪔', '🌼', '🫖'], colors: ['#f39c12', '#16a085', '#c0392b', '#8e44ad'],
+    splash: 'conic-gradient(#f39c12 0 25%,#16a085 0 50%,#c0392b 0 75%,#8e44ad 0) 0 0/22px 22px', floor: 'repeating-conic-gradient(#e8c9a0 0 25%,#d4a874 0 50%) 0 0/30px 30px' },
+  africa:    { wall: '#f0d6b0', ink: '#5a2a10', frame: '#5a3a1a', cab: ['#8a5a2a', '#764a20', '#633d18', '#a8743e'], handle: '#e0b84a', deco: ['🧺', '🏺', '🌿'], colors: ['#e0b84a', '#27ae60', '#c0392b'],
+    splash: 'kente', floor: 'repeating-conic-gradient(#c98b52 0 25%,#b0743e 0 50%) 0 0/30px 30px' },
+  nordic:    { wall: '#f7f7f4', ink: '#2c3e50', frame: '#cdb892', cab: ['#f4ece0', '#e6dccb', '#d8ccb8', '#fffaf2'], handle: '#7a8a96', deco: ['🕯️', '🪴', '☕'], colors: ['#c0392b', '#ffffff', '#1f4f91'],
+    splash: 'linear-gradient(#dfe5ea 2px,transparent 2px) 0 0/60px 24px,linear-gradient(90deg,#dfe5ea 2px,transparent 2px) 0 0/60px 48px,#ffffff', floor: 'repeating-linear-gradient(90deg,#e6d3b3 0 60px,#d6c09c 60px 62px)' },
+  pacific:   { wall: '#e9f7f2', ink: '#1f6f6a', frame: '#a8834a', cab: ['#d9b98a', '#c8a674', '#b89462', '#ecd2a8'], handle: '#5a3a1a', deco: ['🌺', '🐚', '🥥'], colors: ['#e74c3c', '#f1c40f', '#1abc9c'],
+    splash: 'repeating-linear-gradient(90deg,#cbb57a 0 16px,#b39b5f 16px 18px)', floor: 'repeating-linear-gradient(90deg,#e6cfa0 0 30px,#d6bc88 30px 32px)' },
+};
+const LANDMARK_EMOJI = { fuji: '🗻', pyramid: '🔺', steppyramid: '🛕', eiffel: '🗼', pagoda: '🏯', mosque: '🕌', mudmosque: '🕌', windmill: '🌷', castle: '🏰',
+  clocktower: '🕰️', temple: '🏛️', colosseum: '🏛️', opera: '🦘', stupa: '🛕', redeemer: '⛰️', onion: '⛪', moai: '🗿', basilica: '⛪', tajmahal: '🕌', igloo: '🧊', yurt: '⛺', petra: '🏜️' };
+const BIOME_EMOJI = { tropical: ['🌴', '🌳'], island: ['🏝️', '🌴'], desert: ['🏜️', '🌵'], steppe: ['🐎', '🌾'], temperate: ['🏘️', '🌳'], boreal: ['🌲', '🌲'], mountain: ['🏔️', '🌲'], arctic: ['🧊', '🌲'] };
+
+// the main colours of a flag (sampled from the flag picture), for bunting and patterns
+const flagColorCache = new Map();
+function flagColors(iso) {
+  if (flagColorCache.has(iso)) return flagColorCache.get(iso);
+  const p = new Promise(res => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const cv = document.createElement('canvas'); cv.width = 40; cv.height = 26;
+        const x = cv.getContext('2d'); x.drawImage(img, 0, 0, 40, 26);
+        const d = x.getImageData(0, 0, 40, 26).data, counts = new Map();
+        for (let i = 0; i < d.length; i += 4) { const k = (d[i] >> 5) << 6 | (d[i + 1] >> 5) << 3 | (d[i + 2] >> 5); counts.set(k, (counts.get(k) || 0) + 1); }
+        const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).filter(([, n]) => n > 25).slice(0, 4)
+          .map(([k]) => `rgb(${((k >> 6) & 7) * 36 + 10},${((k >> 3) & 7) * 36 + 10},${(k & 7) * 36 + 10})`);
+        res(top.length ? top : null);
+      } catch (e) { res(null); }
+    };
+    img.onerror = () => res(null);
+    img.src = flagUrl(iso, 80);
+  });
+  flagColorCache.set(iso, p);
+  return p;
+}
+const kente = cols => `repeating-linear-gradient(90deg,${cols[0]} 0 20px,${cols[1 % cols.length]} 20px 32px,${cols[2 % cols.length]} 32px 44px,#2b2420 44px 48px),${cols[0]}`;
+
+function kitchenTheme(c) {
+  const T = KITCHEN_THEMES[regionOf(c)], st = stage.style;
+  const set = (k, v) => v ? st.setProperty(k, v) : st.removeProperty(k);
+  set('--k-wall', T.wall); set('--k-ink', T.ink); set('--k-frame', T.frame); set('--k-handle', T.handle);
+  T.cab.forEach((v, i) => set(`--k-cab${i + 1}`, v));
+  set('--k-splash', T.splash === 'kente' ? kente(T.colors) : T.splash);
+  set('--k-floor', T.floor);
+  const info = window.Journey ? Journey.info(c, dotCountries.includes(c)) : { biome: 'temperate', sky: '#9ad0f5', ground: '#6db24d', landmarks: [] };
+  set('--k-sky', info.sky); set('--k-ground', info.ground);
+  const main = c.id === '840' ? '🗽' : LANDMARK_EMOJI[info.landmarks[0]] || BIOME_EMOJI[info.biome][0];
+  const side = BIOME_EMOJI[info.biome][1];
+  $('kView').innerHTML = `<span style="left:12px;top:6px;font-size:20px">${info.biome === 'arctic' ? '❄️' : '☀️'}</span>
+    <span style="right:16px;top:12px;font-size:18px;opacity:.9">☁️</span>
+    <span style="left:50%;bottom:6px;font-size:50px;transform:translateX(-50%)">${main}</span>
+    <span style="left:8px;bottom:4px;font-size:26px">${side}</span><span style="right:8px;bottom:4px;font-size:22px">${side}</span>`;
+  $('kDecoTop').textContent = T.deco[0]; $('kDecoCounter').textContent = T.deco[1]; $('kDecoSill').textContent = T.deco[2];
+  const bunting = cols => { $('kBunting').innerHTML = Array.from({ length: 30 }, (_, i) => `<i style="background:${cols[i % cols.length]}"></i>`).join(''); };
+  bunting(T.colors);
+  flagColors(c.iso).then(cols => {
+    if (!cols || !K || K.c !== c) return;
+    bunting(cols);
+    if (T.splash === 'kente') set('--k-splash', kente(cols));
+  });
+}
+
 function enterKitchen(c) {
   const recipeNames = new Set(c.recipe.map(r => r.name));
   const items = c.recipe.map(r => Object.assign({ uid: ++uid, name: r.name, proc: r.proc, decoy: false, state: 'stored', done: false }, ingInfo(r.name)));
@@ -1106,6 +1203,7 @@ function enterKitchen(c) {
   $('kFlora').innerHTML = `<div class="pic">${firstMatch(FLORA_RULES, c.flora, '🌸')}</div><div class="cap">${esc(c.flora)}</div><div class="label">National flora</div>`;
   $('kFauna').innerHTML = `<div class="pic">${firstMatch(FAUNA_RULES, c.fauna, '🐾')}</div><div class="cap">${esc(c.fauna)}</div><div class="label">National fauna</div>`;
   $('kMagnet').textContent = items[0].emoji;
+  kitchenTheme(c);
   $('kPlate').classList.remove('complete');
   stage.querySelectorAll('.station').forEach(s => s.classList.remove('busy', 'ready'));
   closeStorage();
@@ -1374,6 +1472,16 @@ window.addEventListener('resize', () => { if (screen === 'globe') resize(); else
 $('profileBtn').onclick = () => openProfile(false);
 $('switchBtn').onclick = openProfiles;
 $('passportBtn').onclick = () => openPassport();
+
+// what party.js uses from the game
+window.ChefGame = {
+  COUNTRIES, byId, esc, flagImg, flagUrl, avatarHTML, toast, showModal, hideModal, dishPhoto, showScreen, journeyArgs, sb,
+  cloudOn, world: () => world.lo || world.hi,
+  chef() {   // party identity: a random id per chef (not the leaderboard key), plus name and look
+    if (!save.partyId) { save.partyId = newUuid(); persist(); }
+    return { id: save.partyId, name: save.name || 'Chef', avatar: save.avatar };
+  },
+};
 $('leaderBtn').onclick = openLeaderboard;
 resize();
 renderHud();

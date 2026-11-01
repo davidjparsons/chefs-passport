@@ -13,6 +13,17 @@ Open `index.html` in any modern browser — no install, no build step, no graphi
 Clicking **Fly** starts a short 3D trip (in `journey.js`, using a lightweight three.js build that only loads when you take off):
 wait in the boarding line, scan your passport at the gate, walk down the jet bridge, sit at your window seat while the cabin crew bring food, then step off into a landscape made for that country, with its flag, flowers, animals and a landmark such as the Eiffel Tower or the pyramids. **⏩ Speed up** and **⏭ Skip** are always on screen, and the **🧳 Airport & flight scenes** switch on the country card turns it off on that device. Devices without 3D support fall back to the globe flight.
 
+## 🧑‍🤝‍🧑 Party mode
+
+Press **Party** on the right of the globe to play a GeoGuessr-style game with friends (in `party.js`):
+
+- **Create a party** to get a 5-letter code, or **Join a party** by typing a friend's code (up to 12 players).
+- The host picks the number of rounds and the time per round, then presses **Start game**.
+- Each round, everyone lands in the same mystery 3D landscape with the country's name and flag hidden. Look around for clues (landscape, landmarks, animals, flowers, and a photo of a local dish), then tap the world map to drop a pin and press **Guess!**
+- Points depend on how close you were (up to 5,000 a round). After each round you see everyone's pins and the answer; the host moves on to the next round, and the last round ends with a podium.
+
+Party mode uses the same Supabase project as the leaderboard. Run `party-setup.sql` once in the SQL Editor, after `supabase-setup.sql`.
+
 ## How to cook
 
 - Grab ingredients from the **fridge** and **cupboards** with your floating chef's glove — watch out for ingredients that aren't in the recipe.
